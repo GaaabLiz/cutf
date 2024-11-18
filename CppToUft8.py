@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tempfile
+from collections import Counter
 from logging import exception
 
 import chardet
@@ -22,8 +23,8 @@ def check_utf8_new_old(
         new_file_encoding: str,
 ):
     rich.print(f"\tChecking utf-8 file difference from old to new.")
-    rich.print(f"\tOld encoded file: {old_file_path}.")
-    rich.print(f"\tNew encoded file: {new_file_path}.")
+    #rich.print(f"\tOld encoded file: {old_file_path}.")
+    #rich.print(f"\tNew encoded file: {new_file_path}.")
 
     # Funzione per rimuovere il BOM, se presente
     def remove_bom(file_path, encoding):
@@ -47,7 +48,7 @@ def check_utf8_new_old(
         rich.print(f"\t[bold yellow]Files has different lengths[/bold yellow]: {len(contenuto1)} vs {len(contenuto2)}")
 
     # Confronto carattere per carattere
-    rich.print("\tChecking characters of both files...")
+    #rich.print("\tChecking characters of both files...")
     for i in range(len(contenuto1)):
         if contenuto1[i] != contenuto2[i]:
             rich.print(f"Difference found at position {i}: '{contenuto1[i]}' (file 1) vs '{contenuto2[i]}' (file 2)")
@@ -95,15 +96,11 @@ def check_illegal_chars(file_path, source_encoding):
             line_number = text_data.count('\n', 0, idx) + 1
 
             # Creiamo una versione evidenziata della riga
-            # highlighted_line = (
-            #         line[:char_pos_in_line] +
-            #         f"[bold red]{line[char_pos_in_line]}[/bold red]" +
-            #         line[char_pos_in_line + 1:]
-            # )
+            #highlighted_line = (line[:char_pos_in_line] +f"[bold red]{line[char_pos_in_line]}[/bold red]" +line[char_pos_in_line + 1:])
 
             # Stampa il risultato formattato
             rich.print(f"\t[bold yellow]Found illegal character at position {idx}, line {line_number} in file {os.path.basename(file_path)}[/bold yellow]")
-            # rich.print("\t" + highlighted_line)
+            #rich.print("\t" + highlighted_line)
 
             array.append(idx)
     return len(array)
@@ -111,12 +108,12 @@ def check_illegal_chars(file_path, source_encoding):
 
 
 def check_uft8_illegal_chars(file_path: str, utf8_encoding: str):
-    rich.print(f"\tChecking utf-8 file {os.path.basename(file_path)} for illegal characters")
+    rich.print(f"\tChecking utf-8 file {os.path.basename(file_path)} for illegal characters...")
 
     illegal_after: int = check_illegal_chars(file_path, utf8_encoding)
-    rich.print(f"\tFound {illegal_after} illegal characters on utf-8 file.")
 
     if illegal_after > 0:
+        rich.print(f"\tFound {illegal_after} illegal characters on utf-8 file.")
         test = input("continue?")
 
 
@@ -126,9 +123,9 @@ def convert_encoding_with_iconv(file_path, source_encoding, target_encoding="UTF
     temp_bom_file_path = file_path + ".bom"
 
     illegal_before: int = check_illegal_chars(file_path, source_encoding)
-    rich.print(f"\tFound {illegal_before} illegal characters before encoding changes.")
 
     if illegal_before > 0:
+        rich.print(f"\tFound {illegal_before} illegal characters before encoding changes.")
         confirm = input(f"\tContinue converting? [y/N] ")
         if confirm.lower() != 'y':
             rich.print(f"\t[bold yellow]File {os.path.basename(file_path)} skipped![/bold yellow]")
@@ -185,7 +182,7 @@ def copy_old_encoded_file(file_path):
     return dest
 
 
-def handle_file(root: str, file: str) -> bool:
+def handle_file(root: str, file: str) :
     if file.endswith((".cpp", ".h", ".cs")):
         file_path = os.path.join(root, file)
 
@@ -203,23 +200,26 @@ def handle_file(root: str, file: str) -> bool:
 
         target_encoding = 'utf-8'
 
-        has_old_encoding = (encoding == 'windows-1252') or (encoding == 'ISO-8859-1') or (encoding == 'ascii')
-        is_already_utf8 = (encoding == target_encoding) or (encoding == 'utf-8-sig')
+        has_old_encoding = ((encoding == 'windows-1252') or (encoding == 'ISO-8859-1') or (encoding == 'ascii')
+                            or (encoding == 'Windows-1252') or (encoding == 'ISO-8859-9') or (encoding == 'MacRoman'))
+        is_already_utf8 = (encoding == target_encoding) or (encoding.lower() == 'utf-8-sig')
 
         if has_old_encoding:
             old_copy_path = copy_old_encoded_file(file_path)
             convert_encoding_with_iconv(file_path, encoding.lower(), 'utf-8')
-            check_utf8_new_old(old_copy_path, encoding, file_path, 'utf-8')
+            #check_utf8_new_old(old_copy_path, encoding, file_path, 'utf-8')
             check_uft8_illegal_chars(file_path, "utf-8")
-            return True
+            return True, encoding
         elif is_already_utf8:
             check_uft8_illegal_chars(file_path, encoding)
+            return False, encoding
         else:
             rich.print(f"\t[bold yellow]File {os.path.basename(file_path)} has not a supported encoding ({encoding}). Skipping.[/bold yellow]")
-    else:
-        rich.print(f"File {file} has not supported extension. Skipping.")
+            return False, encoding
+        #rich.print(f"File {file} has not supported extension. Skipping.")
 
-    return False
+    return False, None
+
 
 def main():
     source_dir = input("Choose directory to convert: ")
@@ -230,6 +230,8 @@ def main():
 
     file_mask = ("*.cpp", "*.h")
     count_converted = 0
+    encodings_found = []
+    skipped_files = []
 
     # Chiedi conferma all'utente
     confirm = input(f"Your about to replace current encoding to (UTF-8) in: {source_dir}\nProceed? (y/n): ")
@@ -241,15 +243,33 @@ def main():
     for root, dirs, files in os.walk(source_dir):
         for file in files:
             try:
-                converted = handle_file(root, file)
+                converted, file_encoding = handle_file(root, file)
                 if converted:
                     count_converted += 1
+                encodings_found.append(file_encoding) if file_encoding is not None else None
             except PermissionError as e:
                 rich.print(f"\t[bold red]Conversion of {os.path.basename(file)} interruped because of an error: {e}[/bold red]")
+                skipped_files.append(os.path.join(root, file))
             except RuntimeError as e:
                 rich.print(f"\t[bold red]Conversion of {os.path.basename(file)} interruped because of an error: {e}[/bold red]")
+                skipped_files.append(os.path.join(root, file))
+            except UnicodeDecodeError:
+                rich.print(f"\t[bold red]Conversion of {os.path.basename(file)} interruped because of an error: {e}[/bold red]")
+                skipped_files.append(os.path.join(root, file))
 
+    rich.print("\n")
     rich.print(f"Operation completed!! Converted {count_converted} file(s).")
+
+    # Dopo il ciclo, stampiamo gli encoding trovati
+    encoding_counts = Counter(encodings_found)
+
+    rich.print("\nEncoding before conversions:")
+    for encoding, count in encoding_counts.items():
+        rich.print(f"[bold green]{encoding}[/bold green]: {count} file")
+
+    rich.print("\nFile skipped because of an error:")
+    for file in skipped_files:
+        rich.print(f"[bold red]{file}[/bold red]")
 
 if __name__ == "__main__":
     main()
