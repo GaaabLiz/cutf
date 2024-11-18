@@ -25,10 +25,22 @@ def check_utf8_new_old(
     rich.print(f"\tOld encoded file: {old_file_path}.")
     rich.print(f"\tNew encoded file: {new_file_path}.")
 
-    with open(old_file_path, 'r', encoding=old_file_encoding) as f1:
-        contenuto1 = f1.read()
-    with open(new_file_path, 'r', encoding=new_file_encoding) as f2:
-        contenuto2 = f2.read()
+    # Funzione per rimuovere il BOM, se presente
+    def remove_bom(file_path, encoding):
+        with open(file_path, 'rb') as f:
+            raw_data = f.read()
+
+        # Verifica se c'è un BOM (per UTF-8 è 0xEF 0xBB 0xBF)
+        bom = b'\xef\xbb\xbf'
+        if raw_data.startswith(bom):
+            raw_data = raw_data[len(bom):]  # Rimuovi il BOM
+
+        # Decodifica il contenuto rimanente
+        return raw_data.decode(encoding)
+
+    # Rimuove il BOM dai file, se presente
+    contenuto1 = remove_bom(old_file_path, old_file_encoding)
+    contenuto2 = remove_bom(new_file_path, new_file_encoding)
 
     # Controlla la lunghezza dei file per evitare errori durante il confronto
     if len(contenuto1) != len(contenuto2):
@@ -51,6 +63,11 @@ def check_illegal_chars(file_path, source_encoding):
     array = []
     with open(file_path, 'rb') as f:
         raw_data = f.read()
+
+    # Verifica e gestisci il BOM per UTF-8
+    bom = b'\xef\xbb\xbf'
+    if raw_data.startswith(bom):
+        raw_data = raw_data[len(bom):]  # Rimuovi il BOM
 
     # Decodifica i byte usando l'encoding specificato (per esempio UTF-8)
     try:
@@ -106,6 +123,7 @@ def check_uft8_illegal_chars(file_path: str, utf8_encoding: str):
 def convert_encoding_with_iconv(file_path, source_encoding, target_encoding="UTF-8"):
     rich.print(f"\tConverting [bold magenta]{os.path.basename(file_path)}[/bold magenta] da [bold green]{source_encoding} a UTF-8 [/bold green]")
     temp_file_path = file_path + ".tmp"
+    temp_bom_file_path = file_path + ".bom"
 
     illegal_before: int = check_illegal_chars(file_path, source_encoding)
     rich.print(f"\tFound {illegal_before} illegal characters before encoding changes.")
@@ -117,18 +135,31 @@ def convert_encoding_with_iconv(file_path, source_encoding, target_encoding="UTF
             return
 
     try:
-        # Esegui il comando iconv per la conversione
         command = ["iconv", "-f", source_encoding, "-t", target_encoding, file_path]
+
         with open(temp_file_path, 'w', encoding=target_encoding) as temp_file:
             subprocess.run(command, stdout=temp_file, stderr=subprocess.PIPE, check=True)
-            # Sostituisci il file originale con il file convertito
-        os.replace(temp_file_path, file_path)
+
+        # Aggiungi il BOM al file convertito
+        with open(temp_bom_file_path, 'wb') as bom_file:
+            bom_file.write(b'\xef\xbb\xbf')  # Scrivi il BOM (UTF-8)
+            with open(temp_file_path, 'rb') as temp_file:
+                bom_file.write(temp_file.read())  # Aggiungi il contenuto del file convertito
+
+        # Sostituisci il file originale con il file con BOM
+        os.replace(temp_bom_file_path, file_path)
         rich.print(f"\tConversion completed for [bold magenta]{os.path.basename(file_path)}[/bold magenta]")
 
     except subprocess.CalledProcessError as e:
         rich.print(f"Errore nella conversione di {file_path}: {e}")
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
+    finally:
+        # Cancella i file temporanei, se esistono
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        if os.path.exists(temp_bom_file_path):
+            os.remove(temp_bom_file_path)
 
 
 def copy_old_encoded_file(file_path):
