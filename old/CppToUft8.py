@@ -183,7 +183,7 @@ def copy_old_encoded_file(file_path):
 
 
 def handle_file(root: str, file: str) :
-    if file.endswith((".cpp", ".h", ".cs")):
+    if file.endswith((".cpp", ".h", ".cs", ".ini")):
         file_path = os.path.join(root, file)
 
         # Rileva l'encoding del file
@@ -261,6 +261,7 @@ def main():
     rich.print(f"Operation completed!! Converted {count_converted} file(s).")
 
     # Dopo il ciclo, stampiamo gli encoding trovati
+
     encoding_counts = Counter(encodings_found)
 
     rich.print("\nEncoding before conversions:")
