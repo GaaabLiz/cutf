@@ -1,6 +1,5 @@
 import argparse
-import rich
-from common import copy_old_encoded_file, format_log_path, convert_and_check_utf8
+from old2.common import convert_and_check_utf8
 
 
 def main():

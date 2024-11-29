@@ -4,9 +4,8 @@ import os
 import chardet
 import rich
 
-from common import convert_and_check_utf8
-from util.checks import check_illegal_chars
-from util.log import format_log_error
+from old2.util import check_illegal_chars
+from old2.util.log import format_log_error
 
 
 def main():

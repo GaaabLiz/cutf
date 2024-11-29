@@ -3,8 +3,8 @@ import os
 
 import rich
 
-from common import convert_and_check_utf8
-from util.log import format_log_error
+from old2.common import convert_and_check_utf8
+from old2.util.log import format_log_error
 
 
 def main():

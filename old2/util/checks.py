@@ -2,9 +2,9 @@ import os
 
 import rich
 
-from model.MissingCharResult import MissingCharResult
-from util.code import is_line_commented
-from util.log import format_log_path, format_log_warning
+from old2.model.MissingCharResult import MissingCharResult
+from old2.util.code import is_line_commented
+from old2.util.log import format_log_path, format_log_warning
 
 
 def check_illegal_chars(file_path, source_encoding, is_before_conversion: bool) -> list[MissingCharResult]:
