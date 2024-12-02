@@ -1,5 +1,6 @@
 import argparse
 
+import rich
 from loguru import logger
 
 
@@ -16,7 +17,7 @@ def main():
 
     # Check CLI params
     if args.checks == False and args.convert == False:
-        print("")
+        rich.print("")
 
 
 
