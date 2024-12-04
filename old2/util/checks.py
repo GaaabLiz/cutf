@@ -3,7 +3,7 @@ import os
 import rich
 
 from old2.model.MissingCharResult import MissingCharResult
-from old2.util.code import is_line_commented
+from util.code import is_line_commented
 from old2.util.log import format_log_path, format_log_warning
 
 
