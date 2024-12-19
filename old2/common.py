@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import chardet
 import rich
 from old2.util import check_illegal_chars
-from old2.util.iconv import convert_to_utf8_with_iconv
+from util.iconv import convert_to_utf8_with_iconv
 from old2.util.log import format_log_path, format_log_warning
 from old2.util import copy_old_encoded_file
 

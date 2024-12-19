@@ -12,4 +12,6 @@ class FileScanResult:
     converted: bool = False
     check_missing_char: list[MissingCharResult] | None = None
     error_skipped: bool = False
+    error_name: str | None = None
+    error_description: str | None = None
     skipped: bool = False
