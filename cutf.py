@@ -2,6 +2,8 @@ import argparse
 import os.path
 import rich
 from pylizlib.os import pathutils
+from pylizlib.os.osutils import is_command_available_with_run, is_command_available
+
 from controller.fileController import handle_file
 from controller.resultHandler import print_results
 from model.AppSetting import AppSetting
@@ -18,8 +20,10 @@ def main():
     parser.add_argument('--convert', action='store_true', help='Enable conversion from current encoding to UTF-8')
     parser.add_argument('--copyOld', action='store_true', help='Copy old encoded file to temp folder before converting.')
     parser.add_argument('--printMissingCharString', action='store_true', help='Print the string where the missing char has been found')
+    parser.add_argument('--printAllSkippedFile', action='store_true', help='Print all the skipped files because no action was required')
     parser.add_argument('--all', action='store_true', help='Enable both conversion and checks')
     parser.add_argument('--verbose', action='store_true', help='Enable extended logging')
+    parser.add_argument('--only-relevant', action='store_true', help='Print only relevant result. (Disable missing chars in comment and missing chars invisible in code)')
     parser.add_argument(
         '--extensions',  # Nome dell'argomento
         type=str,  # Tipo stringa
@@ -54,31 +58,51 @@ def main():
     else:
         pathutils.check_path_dir(path)
 
+    # Check iconv in path
+    iconv_ok = is_command_available("iconv")
+    if not iconv_ok:
+        rich.print(format_log_error("Iconv exe not found on your system path!"))
+        exit(1)
+
+    # Ask user confirmation
+    rich.print(f"All files inside \"{format_log_path(path)}\" will be checked and converted to UTF-8 (with BOM). Proceed? (Enter to continue or CTRL-C to exit)")
+    input()
+
     # Create setting object
     setting = AppSetting(
-        path=path,
+        input_path=path,
         extensions=args.extensions,
         checks=enable_checks,
         convert=enable_convert,
         copy_old_encoded=args.copyOld,
         print_missing_char_str=args.printMissingCharString,
         verbose=args.verbose,
+        print_skipped_file_no_action=args.printAllSkippedFile,
+        print_result_only_relevant=args.only_relevant,
     )
 
     # Handle file/dir and get results
+    count_from_files = 0
     results = []
     rich.print(f"Scanning \"{format_log_path(path)}\"...")
     if is_file:
-        scan_result = handle_file(setting.path, setting)
+        count_from_files += 1
+        scan_result = handle_file(setting.input_path, setting)
         results.append(scan_result)
     else:
         for root, dirs, files in os.walk(path):
             for file in files:
-                scan_result = handle_file(file, setting)
+                count_from_files += 1
+                full_file_path = os.path.join(root, file)
+                scan_result = handle_file(full_file_path, setting)
                 results.append(scan_result)
+    rich.print("-------------------------------")
 
     # Handle results
     print_results(results, setting)
+
+    # Print count result
+    rich.print(f"\nThis software scanned {len(results)}/{count_from_files} files inside {format_log_path(path)}.\n")
 
 
 if __name__ == "__main__":

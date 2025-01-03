@@ -31,13 +31,32 @@ def __print_converted_files(results: list[FileScanResult]):
     if count == 0:
         rich.print("0 Files converted.")
 
-def __print_skipped_error_files(results: list[FileScanResult]):
+def __print_skipped_files(results: list[FileScanResult], print_all: bool):
     count = 0
     rich.print(f"@ List of skipped files:")
+    if print_all:
+        for result in results:
+            if result.skipped:
+                count += 1
+                rich.print(f"File {result.file_name} skipped because no action is required.")
+        if count == 0:
+            rich.print("0 skipped file founds.")
+    else:
+        for result in results:
+            if result.skipped:
+                count += 1
+        if count == 0:
+            rich.print("0 skipped file founds.")
+        else:
+            rich.print(f"{count} file skipped because no action was required.")
+
+def __print_skipped_error_files(results: list[FileScanResult]):
+    count = 0
+    rich.print(f"@ List of skipped files (from errors):")
     for result in results:
         if result.error_skipped:
             count += 1
-            rich.print(format_log_error(f"File {result.file_name} skipped because of an error: {result.error_description}"))
+            rich.print(format_log_error(f"File {result.file_path} skipped because of an error: {result.error_description}"))
     if count == 0:
         rich.print("0 errors founds.")
 
@@ -47,25 +66,37 @@ def __print_missing_chars_on_comments(results: list[FileScanResult], print_mis_c
         if result.check_missing_char is not None:
             for file in result.check_missing_char:
                 if file.is_commented:
-                    rich.print(f"File = {file.file_name} | Missing char Visibile = {file.char_found} | Pos = {file.char_position} | File pos = {file.byte_sequence_file_pos}")
+                    rich.print(f"File = {file.file_name} | Missing char Visibile = {file.char_found} | Line = {file.line} | Line Pos = {file.char_position} | File pos = {file.byte_sequence_file_pos}")
                     if print_mis_char_string:
                         rich.print(f"String = {file.string}")
                         rich.print("-------------------")
 
-def __print_missing_chars_on_code(results: list[FileScanResult], print_mis_char_string: bool):
+def __print_missing_chars_on_code(results: list[FileScanResult], print_mis_char_string: bool, only_relevant: bool):
     rich.print(f"@ List of missing chars found on code:")
+    count = 0
     for result in results:
         if result.check_missing_char is not None:
             for file in result.check_missing_char:
                 if not file.is_commented:
-                    rich.print(f"File = {file.file_name} | Missing char Visibile = {file.char_found} | Pos = {file.char_position} | File pos = {file.byte_sequence_file_pos}")
+                    count += 1
+                    if file.char_found:
+                        rich.print(f"File = {file.file_name} | Missing char Visibile = {file.char_found} | Line = {file.line} | Line Pos = {file.char_position} | File pos = {file.byte_sequence_file_pos}")
+                    else:
+                        if not only_relevant:
+                            rich.print(f"File = {file.file_name} | Missing char Visibile = {file.char_found} | Line = {file.line} | Line Pos = {file.char_position} | File pos = {file.byte_sequence_file_pos}")
                     if print_mis_char_string:
                         rich.print(f"String = {file.string}")
                         rich.print("-------------------")
+    if count == 0:
+        rich.print("0 missing chars on code founds.")
 
 def print_results(results: list[FileScanResult], setting: AppSetting):
 
     rich.print("\n\n")
+
+    rich.print("########################################################") if setting.verbose else None
+    rich.print("### START OF RESULTS ###################################")
+    rich.print("########################################################") if setting.verbose else None
 
     # Print list of encoding before all
     __print_encoding_before(results)
@@ -75,14 +106,23 @@ def print_results(results: list[FileScanResult], setting: AppSetting):
     __print_converted_files(results)
     rich.print("\n")
 
+    # File skipped
+    __print_skipped_files(results, setting.print_skipped_file_no_action)
+    rich.print("\n")
+
     # File skipped (Error)
     __print_skipped_error_files(results)
     rich.print("\n")
 
     # Missing chars (comments)
-    __print_missing_chars_on_comments(results, setting.print_missing_char_str)
-    rich.print("\n")
+    if not setting.print_result_only_relevant:
+        __print_missing_chars_on_comments(results, setting.print_missing_char_str)
+        rich.print("\n")
 
     # Missing chars (code)
-    __print_missing_chars_on_code(results, setting.print_missing_char_str)
-    rich.print("\n")
+    __print_missing_chars_on_code(results, setting.print_missing_char_str, setting.print_result_only_relevant)
+
+    rich,print("\n\n")
+    rich.print("########################################################") if setting.verbose else None
+    rich.print("### END OF RESULTS #####################################")
+    rich.print("########################################################")if setting.verbose else None
