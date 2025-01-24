@@ -4,6 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class AppSetting:
     input_path: str
+    is_file: bool
     extensions: list[str]
     checks: bool = False
     convert: bool = False

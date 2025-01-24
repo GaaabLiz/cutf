@@ -65,12 +65,16 @@ def main():
         exit(1)
 
     # Ask user confirmation
-    rich.print(f"All files inside \"{format_log_path(path)}\" will be checked and converted to UTF-8 (with BOM). Proceed? (Enter to continue or CTRL-C to exit)")
+    if is_file:
+        rich.print(f"File \"{format_log_path(path)}\" will be checked and converted to UTF-8 (with BOM). Proceed? (Enter to continue or CTRL-C to exit)")
+    else:
+        rich.print(f"All files inside \"{format_log_path(path)}\" will be checked and converted to UTF-8 (with BOM). Proceed? (Enter to continue or CTRL-C to exit)")
     input()
 
     # Create setting object
     setting = AppSetting(
         input_path=path,
+        is_file = is_file,
         extensions=args.extensions,
         checks=enable_checks,
         convert=enable_convert,
@@ -102,7 +106,10 @@ def main():
     print_results(results, setting)
 
     # Print count result
-    rich.print(f"\nThis software scanned {len(results)}/{count_from_files} files inside {format_log_path(path)}.\n")
+    if setting.is_file:
+        rich.print(f"\nThis software scanned file {format_log_path(path)}.\n")
+    else:
+        rich.print(f"\nThis software scanned {len(results)}/{count_from_files} files inside {format_log_path(path)}.\n")
 
 
 if __name__ == "__main__":
