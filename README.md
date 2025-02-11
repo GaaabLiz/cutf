@@ -2,14 +2,20 @@
 Little script to convert the encoding of any text into UTF-8 (With BOM).
 
 ## Installation
+
+#### Method 1 (Python)
 ```bash
 pip install cuft
 ```
 
+#### Method 2 (Download pre-built)
+Download the pre-built binaries in release page.
+
 ## Requirements
-- Python 3.6 or higher
 - Iconv installed on your system
   - On Windows, you can install it with [GnuWin](https://gnuwin32.sourceforge.net/packages/libiconv.htm)
+ 
+If you are on Windows you can download the pre-built .exe (but still requires icon v)
 
 ## Usage
 ```bash
