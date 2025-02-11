@@ -3,12 +3,12 @@ import os
 import chardet
 import rich
 
-from controller.fileChecker import check_illegal_chars
-from model.AppSetting import AppSetting
-from model.FileScanResult import FileScanResult
-from util.iconv import convert_to_utf8_with_iconv
-from util.log import format_log_path
-from util.path import copy_old_encoded_file
+from cuft.controller.fileChecker import check_illegal_chars
+from cuft.model import AppSetting
+from cuft.model.FileScanResult import FileScanResult
+from cuft.util.iconv import convert_to_utf8_with_iconv
+from cuft.util.log import format_log_path
+from cuft.util.path import copy_old_encoded_file
 
 
 def handle_file(file_path, setting: AppSetting) -> FileScanResult:

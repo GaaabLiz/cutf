@@ -3,7 +3,7 @@ import subprocess
 
 import rich
 
-from util.log import format_log_path
+from cuft.util.log import format_log_path
 
 
 def convert_to_utf8_with_iconv(path: str, source_encoding: str, target_encoding: str):

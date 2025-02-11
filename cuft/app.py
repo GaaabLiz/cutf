@@ -2,12 +2,12 @@ import argparse
 import os.path
 import rich
 from pylizlib.os import pathutils
-from pylizlib.os.osutils import is_command_available_with_run, is_command_available
+from pylizlib.os.osutils import is_command_available
 
-from controller.fileController import handle_file
-from controller.resultHandler import print_results
-from model.AppSetting import AppSetting
-from util.log import format_log_error, format_log_path
+from cuft.controller.fileController import handle_file
+from cuft.controller.resultHandler import print_results
+from cuft.model import AppSetting
+from cuft.util.log import format_log_error, format_log_path
 
 
 

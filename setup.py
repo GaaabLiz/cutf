@@ -21,10 +21,10 @@ setup(
     long_description_content_type="text/markdown",
     long_description=long_description,
     packages=find_packages(),
-    install_requires=[],
+    install_requires=["chardet", "rich"],
     entry_points={
         "console_scripts": [
-            "cuft=cuft:main",
+            "cuft=cuft.app:main",
         ],
     },
     keywords=['python', 'encoding', 'utf-8'],

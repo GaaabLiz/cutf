@@ -2,8 +2,8 @@ import os
 
 import rich
 
-from model.MissingCharResult import MissingCharResult
-from util.code import is_line_commented
+from cuft.model import MissingCharResult
+from cuft.util.code import is_line_commented
 
 
 def check_illegal_chars(file_path, source_encoding) -> list[MissingCharResult]:

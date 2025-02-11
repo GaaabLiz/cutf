@@ -2,9 +2,9 @@ from collections import Counter
 
 import rich
 
-from model.AppSetting import AppSetting
-from model.FileScanResult import FileScanResult
-from util.log import format_log_error
+from cuft.model import AppSetting
+from cuft.model.FileScanResult import FileScanResult
+from cuft.util.log import format_log_error
 
 
 def __print_encoding_before(results: list[FileScanResult]):

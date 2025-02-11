@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from model.MissingCharResult import MissingCharResult
+from cuft.model.MissingCharResult import MissingCharResult
 
 
 @dataclass
