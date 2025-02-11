@@ -7,7 +7,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as fh:
     long_description = "\n" + fh.read()
 
-VERSION = '0.0.4'
+VERSION = '0.0.4.1'
 DESCRIPTION = 'Script to convert files to UTF-8.'
 LONG_DESCRIPTION = 'Script to convert text files from any encoding to UTF-8 (With BOM).'
 
