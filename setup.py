@@ -13,7 +13,7 @@ LONG_DESCRIPTION = 'Script to convert text files from any encoding to UTF-8 (Wit
 
 # Setting up
 setup(
-    name="pylizlib",
+    name="cuft",
     version=VERSION,
     author="Gabliz",
     author_email="",
