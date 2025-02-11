@@ -1,0 +1,54 @@
+name: Build EXE and Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"  # Esegue il workflow quando crei un tag come "v1.0.0"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install pyinstaller
+
+      - name: Build EXE with PyInstaller
+        run: pyinstaller --onefile --distpath ./output cutf.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cutf.exe
+          path: output/cutf.exe
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cutf.exe
+          path: output
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: output/cutf.exe
+          body: "Release automatica dell'eseguibile."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
