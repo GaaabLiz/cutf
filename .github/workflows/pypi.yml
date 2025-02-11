@@ -2,8 +2,8 @@ name: Publish Python Package
 
 on:
   push:
-    branches:
-      - main  # O il branch su cui vuoi attivare il workflow
+    tags:
+      - "v*.*.*"
 
 jobs:
   publish:
