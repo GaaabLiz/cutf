@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+from pathlib import Path
+import sys
+import tomllib
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        print(
+            "Usage: python .mk-scripts/gen-project-py <pyproject.toml> <output.py>",
+            file=sys.stderr,
+        )
+        return 1
+
+    pyproject_path = Path(sys.argv[1])
+    py_file = Path(sys.argv[2])
+
+    try:
+        if not pyproject_path.exists():
+            raise FileNotFoundError(f"File {pyproject_path} does not exist.")
+
+        with pyproject_path.open("rb") as f:
+            data = tomllib.load(f)
+
+        project = data.get("project", {})
+        raw_authors = project.get("authors", [])
+        authors: list[tuple[str | None, str | None]] = []
+        for entry in raw_authors:
+            name = entry.get("name")
+            email = entry.get("email")
+            if name or email:
+                authors.append((name, email))
+
+        info = {
+            "name": project.get("name"),
+            "version": project.get("version"),
+            "description": project.get("description"),
+            "requires_python": project.get("requires-python"),
+            "authors": authors,
+        }
+
+        authors_repr = "[" + ", ".join(
+            f"({repr(name)}, {repr(email)})" for name, email in info["authors"]
+        ) + "]"
+
+        lines = [
+            "# fmt: off",
+            "name = " + repr(info["name"]),
+            "version = " + repr(info["version"]),
+            "description = " + repr(info["description"]),
+            "requires_python = " + repr(info["requires_python"]),
+            "authors = " + authors_repr,
+            "# fmt: on",
+        ]
+
+        py_file.parent.mkdir(parents=True, exist_ok=True)
+        with py_file.open("w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+        print(f"Generated: {py_file}")
+        return 0
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
