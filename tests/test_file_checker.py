@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from cuft.controller.fileChecker import check_illegal_chars
+from cutf.controller.fileChecker import check_illegal_chars
 
 
 def test_check_illegal_chars_detects_comment_and_code(tmp_path: Path):

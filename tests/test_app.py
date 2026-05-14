@@ -1,6 +1,6 @@
 import pytest
 
-from cuft import app
+from cutf import app
 
 
 def test_main_requires_operation_flag():
@@ -18,9 +18,9 @@ def test_main_requires_extensions():
 
 
 def test_main_requires_iconv(monkeypatch):
-    monkeypatch.setattr("cuft.app.os.path.isfile", lambda _: True)
-    monkeypatch.setattr("cuft.app.check_path_file", lambda _: None)
-    monkeypatch.setattr("cuft.app.is_command_available", lambda _: False)
+    monkeypatch.setattr("cutf.app.os.path.isfile", lambda _: True)
+    monkeypatch.setattr("cutf.app.check_path_file", lambda _: None)
+    monkeypatch.setattr("cutf.app.is_command_available", lambda _: False)
 
     with pytest.raises(SystemExit) as exc:
         app.main(["--path", "/tmp/a.txt", "--checks", "--extensions", ".txt"], confirm_fn=lambda: None)
@@ -31,9 +31,9 @@ def test_main_requires_iconv(monkeypatch):
 def test_main_single_file_flow(monkeypatch):
     called = {"handle": 0, "results": 0}
 
-    monkeypatch.setattr("cuft.app.os.path.isfile", lambda _: True)
-    monkeypatch.setattr("cuft.app.check_path_file", lambda _: None)
-    monkeypatch.setattr("cuft.app.is_command_available", lambda _: True)
+    monkeypatch.setattr("cutf.app.os.path.isfile", lambda _: True)
+    monkeypatch.setattr("cutf.app.check_path_file", lambda _: None)
+    monkeypatch.setattr("cutf.app.is_command_available", lambda _: True)
 
     def fake_handle(path, setting):
         _ = (path, setting)
@@ -45,8 +45,8 @@ def test_main_single_file_flow(monkeypatch):
         called["results"] += 1
         assert results == ["ok"]
 
-    monkeypatch.setattr("cuft.app.handle_file", fake_handle)
-    monkeypatch.setattr("cuft.app.print_results", fake_print_results)
+    monkeypatch.setattr("cutf.app.handle_file", fake_handle)
+    monkeypatch.setattr("cutf.app.print_results", fake_print_results)
 
     rc = app.main(["--path", "/tmp/a.txt", "--checks", "--extensions", ".txt"], confirm_fn=lambda: None)
 

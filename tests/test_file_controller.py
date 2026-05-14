@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from cuft.controller.fileController import handle_file
-from cuft.model.AppSetting import AppSetting
+from cutf.controller.fileController import handle_file
+from cutf.model.AppSetting import AppSetting
 
 
 def _setting(**kwargs):
@@ -35,7 +35,7 @@ def test_handle_file_returns_error_when_encoding_unknown(tmp_path: Path, monkeyp
     file_path = tmp_path / "a.txt"
     file_path.write_bytes(b"x")
 
-    monkeypatch.setattr("cuft.controller.fileController.chardet.detect", lambda _: {"encoding": None})
+    monkeypatch.setattr("cutf.controller.fileController.chardet.detect", lambda _: {"encoding": None})
 
     result = handle_file(str(file_path), _setting())
 
@@ -47,7 +47,7 @@ def test_handle_file_convert_flow(tmp_path: Path, monkeypatch):
     file_path = tmp_path / "a.txt"
     file_path.write_bytes(b"x")
 
-    monkeypatch.setattr("cuft.controller.fileController.chardet.detect", lambda _: {"encoding": "latin-1"})
+    monkeypatch.setattr("cutf.controller.fileController.chardet.detect", lambda _: {"encoding": "latin-1"})
 
     calls = {"convert": 0, "check": 0}
 
@@ -60,8 +60,8 @@ def test_handle_file_convert_flow(tmp_path: Path, monkeypatch):
         calls["check"] += 1
         return []
 
-    monkeypatch.setattr("cuft.controller.fileController.convert_to_utf8_with_iconv", fake_convert)
-    monkeypatch.setattr("cuft.controller.fileController.check_illegal_chars", fake_check)
+    monkeypatch.setattr("cutf.controller.fileController.convert_to_utf8_with_iconv", fake_convert)
+    monkeypatch.setattr("cutf.controller.fileController.check_illegal_chars", fake_check)
 
     result = handle_file(str(file_path), _setting(convert=True))
 
@@ -73,8 +73,8 @@ def test_handle_file_checks_only_flow(tmp_path: Path, monkeypatch):
     file_path = tmp_path / "a.txt"
     file_path.write_bytes(b"x")
 
-    monkeypatch.setattr("cuft.controller.fileController.chardet.detect", lambda _: {"encoding": "windows-1252"})
-    monkeypatch.setattr("cuft.controller.fileController.check_illegal_chars", lambda *_: [])
+    monkeypatch.setattr("cutf.controller.fileController.chardet.detect", lambda _: {"encoding": "windows-1252"})
+    monkeypatch.setattr("cutf.controller.fileController.check_illegal_chars", lambda *_: [])
 
     result = handle_file(str(file_path), _setting(checks=True))
 
@@ -86,9 +86,9 @@ def test_handle_file_copy_old_encoded(tmp_path: Path, monkeypatch):
     file_path = tmp_path / "a.txt"
     file_path.write_bytes(b"x")
 
-    monkeypatch.setattr("cuft.controller.fileController.chardet.detect", lambda _: {"encoding": "cp1252"})
-    monkeypatch.setattr("cuft.controller.fileController.convert_to_utf8_with_iconv", lambda *_: None)
-    monkeypatch.setattr("cuft.controller.fileController.check_illegal_chars", lambda *_: [])
+    monkeypatch.setattr("cutf.controller.fileController.chardet.detect", lambda _: {"encoding": "cp1252"})
+    monkeypatch.setattr("cutf.controller.fileController.convert_to_utf8_with_iconv", lambda *_: None)
+    monkeypatch.setattr("cutf.controller.fileController.check_illegal_chars", lambda *_: [])
 
     copied = {"count": 0}
 
@@ -96,7 +96,7 @@ def test_handle_file_copy_old_encoded(tmp_path: Path, monkeypatch):
         copied["count"] += 1
         return "/tmp/backup.txt"
 
-    monkeypatch.setattr("cuft.controller.fileController.copy_old_encoded_file", fake_copy)
+    monkeypatch.setattr("cutf.controller.fileController.copy_old_encoded_file", fake_copy)
 
     handle_file(str(file_path), _setting(convert=True, copy_old_encoded=True))
 

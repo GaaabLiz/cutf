@@ -1,12 +1,12 @@
-from cuft.controller.resultHandler import print_results
-from cuft.model.AppSetting import AppSetting
-from cuft.model.FileScanResult import FileScanResult
-from cuft.model.MissingCharResult import MissingCharResult
+from cutf.controller.resultHandler import print_results
+from cutf.model.AppSetting import AppSetting
+from cutf.model.FileScanResult import FileScanResult
+from cutf.model.MissingCharResult import MissingCharResult
 
 
 def test_print_results_runs_without_errors(monkeypatch):
     captured = []
-    monkeypatch.setattr("cuft.controller.resultHandler.rich.print", lambda *args, **kwargs: captured.append(args))
+    monkeypatch.setattr("cutf.controller.resultHandler.rich.print", lambda *args, **kwargs: captured.append(args))
 
     missing = MissingCharResult(
         is_commented=False,

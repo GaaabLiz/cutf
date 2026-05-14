@@ -1,6 +1,6 @@
-from cuft.model.AppSetting import AppSetting
-from cuft.model.FileScanResult import FileScanResult
-from cuft.model.MissingCharResult import MissingCharResult
+from cutf.model.AppSetting import AppSetting
+from cutf.model.FileScanResult import FileScanResult
+from cutf.model.MissingCharResult import MissingCharResult
 
 
 def test_app_setting_defaults():

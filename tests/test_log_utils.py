@@ -1,4 +1,4 @@
-from cuft.util.log import format_log_error, format_log_path, format_log_warning
+from cutf.util.log import format_log_error, format_log_path, format_log_warning
 
 
 def test_format_log_path():

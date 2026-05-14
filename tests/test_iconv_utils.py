@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from cuft.util.iconv import convert_to_utf8_with_iconv
+from cutf.util.iconv import convert_to_utf8_with_iconv
 
 
 def test_convert_to_utf8_with_iconv_writes_bom(tmp_path: Path, monkeypatch):
@@ -11,7 +11,7 @@ def test_convert_to_utf8_with_iconv_writes_bom(tmp_path: Path, monkeypatch):
         _ = (command, stderr, check)
         stdout.write("converted")
 
-    monkeypatch.setattr("cuft.util.iconv.subprocess.run", fake_run)
+    monkeypatch.setattr("cutf.util.iconv.subprocess.run", fake_run)
 
     convert_to_utf8_with_iconv(str(source), "latin-1", "utf-8")
 

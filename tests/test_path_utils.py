@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cuft.util.path import copy_old_encoded_file
+from cutf.util.path import copy_old_encoded_file
 
 
 def test_copy_old_encoded_file_success(tmp_path: Path):

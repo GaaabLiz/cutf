@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from cuft.util.code import is_line_commented
+from cutf.util.code import is_line_commented
 
 
 def test_is_line_commented_single_line_comment(tmp_path: Path):
