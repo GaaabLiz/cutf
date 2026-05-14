@@ -1,6 +1,6 @@
-# CUFT
+# CUTF
 
-CUFT is a CLI tool that scans source files, detects legacy encodings, and converts them to **UTF-8 with BOM**.
+cutf is a CLI tool that scans source files, detects legacy encodings, and converts them to **UTF-8 with BOM**.
 
 It can also report replacement characters (`�`) introduced by decoding issues.
 
@@ -62,7 +62,7 @@ cd cutf
 uv sync --all-groups
 ```
 
-#### 3) Run CUFT
+#### 3) Run cutf
 
 ```bash
 uv run cutf --path ./src --all --extensions .py .txt
@@ -132,19 +132,19 @@ uv run ruff format .
 
 ## FAQ
 
-### Why does CUFT require `--extensions`?
+### Why does CUTF require `--extensions`?
 It prevents accidental processing of unrelated files and keeps scans predictable.
 
 ### Why UTF-8 **with BOM**?
 Some tools and Windows-oriented workflows require BOM for UTF-8 detection.
 
 ### What happens if `iconv` is missing?
-CUFT stops before processing and prints an error. Install `iconv` and retry.
+CUTF stops before processing and prints an error. Install `iconv` and retry.
 
 ### Where are original files copied when `--copyOld` is enabled?
 They are copied to `<system-temp>/SrcChE`.
 
-### Does CUFT modify UTF-8 files?
+### Does CUTF modify UTF-8 files?
 Only when conversion is requested and the file is detected as non-UTF. Otherwise files are skipped.
 
 ## License

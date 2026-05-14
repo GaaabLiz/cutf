@@ -7,7 +7,7 @@
 
 ### 🐛 Bug Fixes
 
-- Update import paths from 'cuft' to 'cutf' in test files
+- Update import paths from 'cutf' to 'cutf' in test files
 - Update import paths from 'cuft' to 'cutf' across multiple files
 
 ### 💼 Other
