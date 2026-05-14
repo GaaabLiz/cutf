@@ -4,15 +4,23 @@ import chardet
 import rich
 
 from cuft.controller.fileChecker import check_illegal_chars
-from cuft.model import AppSetting
+from cuft.model.AppSetting import AppSetting
 from cuft.model.FileScanResult import FileScanResult
 from cuft.util.iconv import convert_to_utf8_with_iconv
 from cuft.util.log import format_log_path
 from cuft.util.path import copy_old_encoded_file
 
 
-def handle_file(file_path, setting: AppSetting) -> FileScanResult:
+def handle_file(file_path: str, setting: AppSetting) -> FileScanResult:
+    """Scan and optionally convert a single file according to current settings.
 
+    Args:
+        file_path: Full path of the file to process.
+        setting: Runtime application options that control checks/conversion behavior.
+
+    Returns:
+        FileScanResult: Structured outcome including conversion, checks, and errors.
+    """
     # Starting
     file_name = os.path.basename(file_path)
     encoding = None
@@ -20,30 +28,36 @@ def handle_file(file_path, setting: AppSetting) -> FileScanResult:
     try:
         # Checking extension
         _, extension = os.path.splitext(file_path)
-        has_supported_extension = extension.lower() in setting.extensions
+        normalized_extensions = {value.lower() for value in setting.extensions}
+        has_supported_extension = extension.lower() in normalized_extensions
         if not has_supported_extension:
-            rich.print(f"File {file_name} has no supported extension ({extension}). Skipping...") if setting.verbose else None
+            if setting.verbose:
+                rich.print(f"File {file_name} has no supported extension ({extension}). Skipping...")
             return FileScanResult(
                 file_path=file_path,
                 file_name=file_name,
                 skipped=True,
             )
-        rich.print(f"## Checking file \"{format_log_path(file_path)}\"...") if setting.verbose else None
-
         # Load encoding
-        rich.print(f"Opening file \"{file_path}\"...") if setting.verbose else None
-        with open(file_path, 'rb') as f:
+        if setting.verbose:
+            rich.print(f"## Checking file \"{format_log_path(file_path)}\"...")
+
+        if setting.verbose:
+            rich.print(f"Opening file \"{file_path}\"...")
+        with open(file_path, "rb") as f:
             raw_data = f.read()
             result = chardet.detect(raw_data)
-            encoding = result['encoding']
+            encoding = result["encoding"]
 
         # Check encoding
         if encoding is None:
             raise RuntimeError(f"Cannot detect encoding of {file_name}")
-        is_already_utf8 = (encoding == "utf-8") or (encoding.lower() == 'utf-8-sig') or (encoding == "utf-16")
+        is_already_utf8 = (
+            encoding.lower() in {"utf-8", "utf-8-sig", "utf-16", "utf-16le", "utf-16be"}
+        )
 
         # Check if need to be converted
-        needs_convert = is_already_utf8 == False and setting.convert
+        needs_convert = (not is_already_utf8) and setting.convert
 
         # Copy old encoded (if enabled and needed)
         if needs_convert and setting.copy_old_encoded:
@@ -56,19 +70,21 @@ def handle_file(file_path, setting: AppSetting) -> FileScanResult:
             output_encoding = "utf-8"
             convert_to_utf8_with_iconv(file_path, encoding, output_encoding)
             missing_chars = check_illegal_chars(file_path, output_encoding)
-            rich.print(f"Finished checking and converting file \"{file_name}\"!") if setting.verbose else None
+            if setting.verbose:
+                rich.print(f"Finished checking and converting file \"{file_name}\"!")
             return FileScanResult(
                 file_path=file_path,
                 file_name=file_name,
                 encoding_before=encoding,
-                encoding_after=output_encoding + "(BOM)",
+                encoding_after=f"{output_encoding}(BOM)",
                 check_missing_char=missing_chars,
                 converted=True,
             )
         elif setting.checks:
             rich.print(f"File \"{file_name}\" has encoding {encoding}. Proceeding to check...")
             missing_chars = check_illegal_chars(file_path, encoding)
-            rich.print(f"Finished checking file \"{file_name}\"!") if setting.verbose else None
+            if setting.verbose:
+                rich.print(f"Finished checking file \"{file_name}\"!")
             return FileScanResult(
                 file_path=file_path,
                 file_name=file_name,
@@ -80,18 +96,18 @@ def handle_file(file_path, setting: AppSetting) -> FileScanResult:
             return FileScanResult(
                 file_path=file_path,
                 file_name=file_name,
-                skipped=True
+                skipped=True,
             )
 
     except RuntimeError as e:
         rich.print(f"[bold red]Conversion/checking of {file_name} interrupted because of an error: {e}[/bold red]")
         return FileScanResult(
-                file_path=file_path,
-                file_name=file_name,
-                encoding_before=encoding,
-                error_skipped=True,
-                error_description=str(e),
-            )
+            file_path=file_path,
+            file_name=file_name,
+            encoding_before=encoding,
+            error_skipped=True,
+            error_description=str(e),
+        )
     # except FileNotFoundError as e:
     #     rich.print(f"[bold red]Conversion/checking of {file_name} interrupted because of an error: {e}[/bold red]")
     #     return FileScanResult(

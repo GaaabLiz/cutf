@@ -8,11 +8,16 @@ from cuft.util.log import format_log_error
 
 
 def __print_encoding_before(results: list[FileScanResult]):
+    """Print a count of detected original encodings.
+
+    Args:
+        results: Collection of per-file scan outcomes.
+    """
     encoding_counter = Counter()
 
     # Scorri ogni FileScanResult
     for result in results:
-        # Aggiungi l'encoding_before se non è None
+        # Aggiungi l'encoding_before se non e None
         if result.encoding_before:
             encoding_counter[result.encoding_before] += 1
 
@@ -21,9 +26,15 @@ def __print_encoding_before(results: list[FileScanResult]):
     for encoding, count in encoding_counter.items():
         rich.print(f"{encoding}: {count}")
 
+
 def __print_converted_files(results: list[FileScanResult]):
+    """Print all files that were converted during processing.
+
+    Args:
+        results: Collection of per-file scan outcomes.
+    """
     count = 0
-    rich.print(f"@ List of converted files:")
+    rich.print("@ List of converted files:")
     for result in results:
         if result.converted:
             count += 1
@@ -31,9 +42,16 @@ def __print_converted_files(results: list[FileScanResult]):
     if count == 0:
         rich.print("0 Files converted.")
 
+
 def __print_skipped_files(results: list[FileScanResult], print_all: bool):
+    """Print files skipped because no action was required.
+
+    Args:
+        results: Collection of per-file scan outcomes.
+        print_all: If ``True``, prints one row per skipped file.
+    """
     count = 0
-    rich.print(f"@ List of skipped files:")
+    rich.print("@ List of skipped files:")
     if print_all:
         for result in results:
             if result.skipped:
@@ -50,9 +68,15 @@ def __print_skipped_files(results: list[FileScanResult], print_all: bool):
         else:
             rich.print(f"{count} file skipped because no action was required.")
 
+
 def __print_skipped_error_files(results: list[FileScanResult]):
+    """Print files skipped because of processing errors.
+
+    Args:
+        results: Collection of per-file scan outcomes.
+    """
     count = 0
-    rich.print(f"@ List of skipped files (from errors):")
+    rich.print("@ List of skipped files (from errors):")
     for result in results:
         if result.error_skipped:
             count += 1
@@ -60,8 +84,15 @@ def __print_skipped_error_files(results: list[FileScanResult]):
     if count == 0:
         rich.print("0 errors founds.")
 
+
 def __print_missing_chars_on_comments(results: list[FileScanResult], print_mis_char_string: bool):
-    rich.print(f"@ List of missing chars found on comments:")
+    """Print missing character occurrences detected in comments.
+
+    Args:
+        results: Collection of per-file scan outcomes.
+        print_mis_char_string: If ``True``, include the original line string.
+    """
+    rich.print("@ List of missing chars found on comments:")
     for result in results:
         if result.check_missing_char is not None:
             for file in result.check_missing_char:
@@ -71,8 +102,16 @@ def __print_missing_chars_on_comments(results: list[FileScanResult], print_mis_c
                         rich.print(f"String = {file.string}")
                         rich.print("-------------------")
 
+
 def __print_missing_chars_on_code(results: list[FileScanResult], print_mis_char_string: bool, only_relevant: bool):
-    rich.print(f"@ List of missing chars found on code:")
+    """Print missing character occurrences detected in code lines.
+
+    Args:
+        results: Collection of per-file scan outcomes.
+        print_mis_char_string: If ``True``, include the original line string.
+        only_relevant: If ``True``, hide missing-char entries where the symbol is not visible.
+    """
+    rich.print("@ List of missing chars found on code:")
     count = 0
     for result in results:
         if result.check_missing_char is not None:
@@ -90,7 +129,14 @@ def __print_missing_chars_on_code(results: list[FileScanResult], print_mis_char_
     if count == 0:
         rich.print("0 missing chars on code founds.")
 
+
 def print_results(results: list[FileScanResult], setting: AppSetting):
+    """Print the complete scan summary to the console.
+
+    Args:
+        results: Collection of per-file scan outcomes.
+        setting: Runtime settings controlling verbosity and filtering.
+    """
 
     rich.print("\n\n")
 
@@ -122,7 +168,7 @@ def print_results(results: list[FileScanResult], setting: AppSetting):
     # Missing chars (code)
     __print_missing_chars_on_code(results, setting.print_missing_char_str, setting.print_result_only_relevant)
 
-    rich,print("\n\n")
+    rich.print("\n\n")
     rich.print("########################################################") if setting.verbose else None
     rich.print("### END OF RESULTS #####################################")
-    rich.print("########################################################")if setting.verbose else None
+    rich.print("########################################################") if setting.verbose else None
