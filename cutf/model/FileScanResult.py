@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cuft.model.MissingCharResult import MissingCharResult
+from cutf.model.MissingCharResult import MissingCharResult
 
 
 @dataclass

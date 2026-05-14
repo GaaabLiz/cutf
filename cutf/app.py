@@ -4,10 +4,10 @@ from shutil import which
 
 import rich
 
-from cuft.controller.fileController import handle_file
-from cuft.controller.resultHandler import print_results
-from cuft.model.AppSetting import AppSetting
-from cuft.util.log import format_log_error, format_log_path
+from cutf.controller.fileController import handle_file
+from cutf.controller.resultHandler import print_results
+from cutf.model.AppSetting import AppSetting
+from cutf.util.log import format_log_error, format_log_path
 
 
 def check_path_file(path: str) -> None:
