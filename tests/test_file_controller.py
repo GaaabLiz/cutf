@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from cutf.controller.fileController import handle_file
 from cutf.model.AppSetting import AppSetting
 
@@ -101,4 +103,58 @@ def test_handle_file_copy_old_encoded(tmp_path: Path, monkeypatch):
     handle_file(str(file_path), _setting(convert=True, copy_old_encoded=True))
 
     assert copied["count"] == 1
+
+
+def test_handle_file_matches_extensions_case_insensitively(tmp_path: Path, monkeypatch):
+    file_path = tmp_path / "a.PY"
+    file_path.write_bytes(b"x")
+
+    monkeypatch.setattr("cutf.controller.fileController.chardet.detect", lambda _: {"encoding": "latin-1"})
+
+    calls = {"convert": 0, "check": 0}
+
+    def fake_convert(path, src, dst):
+        _ = (path, src, dst)
+        calls["convert"] += 1
+
+    def fake_check(path, enc):
+        _ = (path, enc)
+        calls["check"] += 1
+        return []
+
+    monkeypatch.setattr("cutf.controller.fileController.convert_to_utf8_with_iconv", fake_convert)
+    monkeypatch.setattr("cutf.controller.fileController.check_illegal_chars", fake_check)
+
+    result = handle_file(str(file_path), _setting(convert=True, extensions=[".py"]))
+
+    assert result.converted is True
+    assert calls == {"convert": 1, "check": 1}
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "utf-16", "utf-16le", "utf-16be"])
+def test_handle_file_skips_utf_compatible_encodings_during_convert(tmp_path: Path, monkeypatch, encoding: str):
+    file_path = tmp_path / "a.py"
+    file_path.write_bytes(b"x")
+
+    monkeypatch.setattr("cutf.controller.fileController.chardet.detect", lambda _: {"encoding": encoding})
+
+    calls = {"convert": 0, "check": 0}
+
+    def fake_convert(path, src, dst):
+        _ = (path, src, dst)
+        calls["convert"] += 1
+
+    def fake_check(path, enc):
+        _ = (path, enc)
+        calls["check"] += 1
+        return []
+
+    monkeypatch.setattr("cutf.controller.fileController.convert_to_utf8_with_iconv", fake_convert)
+    monkeypatch.setattr("cutf.controller.fileController.check_illegal_chars", fake_check)
+
+    result = handle_file(str(file_path), _setting(convert=True, extensions=[".py"]))
+
+    assert result.skipped is True
+    assert result.converted is False
+    assert calls == {"convert": 0, "check": 0}
 

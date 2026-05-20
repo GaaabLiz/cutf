@@ -54,3 +54,35 @@ def test_main_single_file_flow(monkeypatch):
     assert called == {"handle": 1, "results": 1}
 
 
+def test_main_directory_flow(monkeypatch):
+    handled_paths = []
+
+    monkeypatch.setattr("cutf.app.os.path.isfile", lambda _: False)
+    monkeypatch.setattr("cutf.app.check_path_dir", lambda _: None)
+    monkeypatch.setattr("cutf.app.is_command_available", lambda _: True)
+    monkeypatch.setattr(
+        "cutf.app.os.walk",
+        lambda _: [
+            ("/tmp/src", ["nested"], ["a.py"]),
+            ("/tmp/src/nested", [], ["b.cpp"]),
+        ],
+    )
+
+    def fake_handle(path, setting):
+        _ = setting
+        handled_paths.append(path)
+        return path
+
+    def fake_print_results(results, setting):
+        _ = setting
+        assert results == handled_paths
+
+    monkeypatch.setattr("cutf.app.handle_file", fake_handle)
+    monkeypatch.setattr("cutf.app.print_results", fake_print_results)
+
+    rc = app.main(["--path", "/tmp/src", "--convert", "--extensions", ".py", ".cpp"], confirm_fn=lambda: None)
+
+    assert rc == 0
+    assert handled_paths == ["/tmp/src/a.py", "/tmp/src/nested/b.cpp"]
+
+
