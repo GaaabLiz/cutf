@@ -1,5 +1,7 @@
 import argparse
 import os
+import sys
+from pathlib import Path
 from shutil import which
 
 import rich
@@ -8,6 +10,78 @@ from cutf.controller.fileController import handle_file
 from cutf.controller.resultHandler import print_results
 from cutf.model.AppSetting import AppSetting
 from cutf.util.log import format_log_error, format_log_path
+
+DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b-instruct"
+
+
+def get_executable_directory() -> Path:
+    """Return the directory that should host runtime sidecar files like ``.env``."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(sys.argv[0]).resolve().parent
+
+
+def load_dotenv_from_executable_directory() -> dict[str, str]:
+    """Load simple ``KEY=VALUE`` entries from ``.env`` near the executable."""
+    env_path = get_executable_directory() / ".env"
+    if not env_path.is_file():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip("\"'")
+        if key:
+            values[key] = value
+    return values
+
+
+def load_windows_user_environment() -> dict[str, str]:
+    """Load current-user environment variables from the Windows registry when available."""
+    if os.name != "nt":
+        return {}
+
+    try:
+        import winreg
+    except ImportError:
+        return {}
+
+    values: dict[str, str] = {}
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            index = 0
+            while True:
+                name, value, _ = winreg.EnumValue(key, index)
+                values[name] = value
+                index += 1
+    except OSError:
+        return values
+    return values
+
+
+def resolve_ollama_url(cli_value: str | None) -> str | None:
+    """Resolve the Ollama base URL from CLI, ``.env``, and environment fallbacks."""
+    if cli_value:
+        return cli_value.strip()
+
+    dotenv_values = load_dotenv_from_executable_directory()
+    dotenv_value = dotenv_values.get("OLLAMA_URL")
+    if dotenv_value:
+        return dotenv_value.strip()
+
+    env_value = os.environ.get("OLLAMA_URL")
+    if env_value:
+        return env_value.strip()
+
+    windows_user_value = load_windows_user_environment().get("OLLAMA_URL")
+    if windows_user_value:
+        return windows_user_value.strip()
+
+    return None
 
 
 def check_path_file(path: str) -> None:
@@ -56,11 +130,24 @@ def build_parser() -> argparse.ArgumentParser:
     """
     # Get CLI params
     parser = argparse.ArgumentParser(
-        description="Convert source files from legacy encodings to UTF-8 with BOM."
+        description=(
+            "Scan source files, convert legacy encodings to UTF-8 with BOM, "
+            "and interactively fix replacement characters."
+        )
     )
     parser.add_argument("--path", type=str, required=True, help="Path of the file/directory to scan/convert.")
     parser.add_argument("--checks", action="store_true", help="Enable checks for the file")
     parser.add_argument("--convert", action="store_true", help="Enable conversion from current encoding to UTF-8")
+    parser.add_argument(
+        "--fix-wrong-with-ai",
+        action="store_true",
+        help="Interactively fix replacement characters using Ollama AI without changing file encoding",
+    )
+    parser.add_argument(
+        "--ai-ollama-url",
+        type=str,
+        help="Override the Ollama base URL used by --fix-wrong-with-ai",
+    )
     parser.add_argument("--copyOld", action="store_true", help="Copy old encoded file before converting")
     parser.add_argument(
         "--printMissingCharString",
@@ -108,8 +195,11 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
     args = parser.parse_args(argv)
 
     # Check CLI params
-    if not (args.checks or args.convert or args.all):
-        rich.print(format_log_error("At least one of --checks or --convert must be set."))
+    if not (args.checks or args.convert or args.all or args.fix_wrong_with_ai):
+        rich.print(format_log_error("At least one operation flag must be set."))
+        raise SystemExit(1)
+    if args.fix_wrong_with_ai and (args.checks or args.convert or args.all):
+        rich.print(format_log_error("--fix-wrong-with-ai cannot be combined with --checks, --convert, or --all."))
         raise SystemExit(1)
     if not args.extensions:
         rich.print(format_log_error("At least one file extension must be provided with --extensions."))
@@ -119,12 +209,26 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
     path = args.path
     enable_checks = bool(args.checks or args.all)
     enable_convert = bool(args.convert or args.all)
+    enable_ai_fix = bool(args.fix_wrong_with_ai)
+    ollama_url = resolve_ollama_url(args.ai_ollama_url) if enable_ai_fix else None
+
+    if enable_ai_fix and not ollama_url:
+        rich.print(
+            format_log_error(
+                "OLLAMA_URL is required for --fix-wrong-with-ai. Pass --ai-ollama-url or define OLLAMA_URL."
+            )
+        )
+        raise SystemExit(1)
 
     rich.print(f"Path to scan: {format_log_path(path)}")
     rich.print(f"Checks enabled: {enable_checks}")
     rich.print(f"Conversion enabled: {enable_convert}")
+    rich.print(f"AI fix enabled: {enable_ai_fix}")
     rich.print(f"Extensions to scan: {args.extensions}")
     rich.print(f"Copy old encoded: {args.copyOld}")
+    if enable_ai_fix:
+        rich.print(f"Ollama URL: {ollama_url}")
+        rich.print(f"Ollama model: {DEFAULT_OLLAMA_MODEL}")
     rich.print("\n")
 
     # Check path is valid and if it's a dir/file
@@ -135,12 +239,22 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
         check_path_dir(path)
 
     # Check iconv in path
-    if not is_command_available("iconv"):
+    if not enable_ai_fix and not is_command_available("iconv"):
         rich.print(format_log_error("Iconv executable not found on your system PATH."))
         raise SystemExit(1)
 
     # Ask user confirmation
-    if is_file:
+    if enable_ai_fix and is_file:
+        rich.print(
+            f"File \"{format_log_path(path)}\" will be scanned for replacement characters and fixed interactively "
+            "with Ollama. Proceed? (Enter to continue or CTRL-C to exit)"
+        )
+    elif enable_ai_fix:
+        rich.print(
+            f"All files inside \"{format_log_path(path)}\" will be scanned for replacement characters and fixed "
+            "interactively with Ollama. Proceed? (Enter to continue or CTRL-C to exit)"
+        )
+    elif is_file:
         rich.print(
             f"File \"{format_log_path(path)}\" will be checked and converted to UTF-8 "
             "(with BOM). Proceed? (Enter to continue or CTRL-C to exit)"
@@ -164,6 +278,9 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
         verbose=args.verbose,
         print_skipped_file_no_action=args.printAllSkippedFile,
         print_result_only_relevant=args.only_relevant,
+        fix_wrong_with_ai=enable_ai_fix,
+        ai_ollama_url=ollama_url,
+        ai_model=DEFAULT_OLLAMA_MODEL,
     )
 
     # Handle file/dir and get results
