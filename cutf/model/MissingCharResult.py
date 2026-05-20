@@ -13,6 +13,7 @@ class MissingCharResult:
         char_position: Character index of ``�`` inside the line, or ``-1`` when not visible.
         char_found: ``True`` when the replacement character is visible in decoded text.
         byte_sequence_file_pos: Byte index in the raw file where ``EF BF BD`` starts.
+        absolute_char_index: Absolute character offset in the decoded text.
     """
     is_commented: bool
     string: str
@@ -21,3 +22,4 @@ class MissingCharResult:
     char_position: int
     char_found: bool
     byte_sequence_file_pos: int
+    absolute_char_index: int | None = None

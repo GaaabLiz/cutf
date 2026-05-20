@@ -16,6 +16,9 @@ class AppSetting:
         print_skipped_file_no_action: Prints all skipped files instead of just a count.
         print_result_only_relevant: Hides less relevant missing-char entries.
         verbose: Enables detailed progress logs.
+        fix_wrong_with_ai: Enables interactive AI-assisted replacement of ``�``.
+        ai_ollama_url: Resolved Ollama base URL used for AI requests.
+        ai_model: Ollama model name used for AI requests.
     """
     input_path: str
     is_file: bool
@@ -27,3 +30,6 @@ class AppSetting:
     print_skipped_file_no_action: bool = False
     print_result_only_relevant: bool = False
     verbose: bool = False
+    fix_wrong_with_ai: bool = False
+    ai_ollama_url: str | None = None
+    ai_model: str = "qwen2.5:1.5b-instruct"

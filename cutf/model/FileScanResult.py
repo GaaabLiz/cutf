@@ -18,6 +18,12 @@ class FileScanResult:
         error_name: Optional short error name (reserved for future use).
         error_description: Human-readable error details.
         skipped: ``True`` when no operation was needed for the file.
+        ai_fix_enabled: ``True`` when interactive AI fixing ran for the file.
+        ai_total_missing_chars: Number of replacement characters found before AI fixing.
+        ai_applied_fixes: Number of user-approved AI fixes written to disk.
+        ai_skipped_fixes: Number of replacement characters skipped by the user.
+        ai_retry_count: Number of times the user asked Ollama for another proposal.
+        ai_failed_fixes: Number of failed AI suggestions or write verifications.
     """
     file_path: str
     file_name: str
@@ -29,3 +35,9 @@ class FileScanResult:
     error_name: str | None = None
     error_description: str | None = None
     skipped: bool = False
+    ai_fix_enabled: bool = False
+    ai_total_missing_chars: int = 0
+    ai_applied_fixes: int = 0
+    ai_skipped_fixes: int = 0
+    ai_retry_count: int = 0
+    ai_failed_fixes: int = 0
