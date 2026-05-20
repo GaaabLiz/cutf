@@ -18,6 +18,9 @@ def _setting(**kwargs):
         print_skipped_file_no_action=False,
         print_result_only_relevant=False,
         verbose=False,
+        fix_wrong_with_ai=False,
+        ai_ollama_url=None,
+        ai_model="qwen2.5:1.5b-instruct",
     )
     base.update(kwargs)
     return AppSetting(**base)
@@ -82,6 +85,35 @@ def test_handle_file_checks_only_flow(tmp_path: Path, monkeypatch):
 
     assert result.converted is False
     assert result.check_missing_char == []
+
+
+def test_handle_file_ai_fix_flow(tmp_path: Path, monkeypatch):
+    file_path = tmp_path / "a.txt"
+    file_path.write_text("questo � un esempio\n", encoding="utf-8")
+
+    monkeypatch.setattr("cutf.controller.fileController.chardet.detect", lambda _: {"encoding": "utf-8"})
+
+    class FakeSummary:
+        total_missing_chars = 1
+        applied_fixes = 1
+        skipped_fixes = 0
+        retry_count = 1
+        failed_fixes = 0
+        remaining_occurrences = []
+
+    monkeypatch.setattr("cutf.controller.fileController.fix_wrong_chars_with_ai", lambda *_: FakeSummary())
+    monkeypatch.setattr("cutf.controller.fileController.check_illegal_chars", lambda *_: ["should-not-run"])
+
+    result = handle_file(
+        str(file_path),
+        _setting(fix_wrong_with_ai=True, ai_ollama_url="http://localhost:11434"),
+    )
+
+    assert result.ai_fix_enabled is True
+    assert result.ai_total_missing_chars == 1
+    assert result.ai_applied_fixes == 1
+    assert result.check_missing_char == []
+    assert result.converted is False
 
 
 def test_handle_file_copy_old_encoded(tmp_path: Path, monkeypatch):

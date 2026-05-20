@@ -9,6 +9,8 @@ def test_app_setting_defaults():
     assert setting.checks is False
     assert setting.convert is False
     assert setting.copy_old_encoded is False
+    assert setting.fix_wrong_with_ai is False
+    assert setting.ai_ollama_url is None
 
 
 def test_missing_char_result_fields():
@@ -20,6 +22,7 @@ def test_missing_char_result_fields():
         char_position=3,
         char_found=True,
         byte_sequence_file_pos=42,
+        absolute_char_index=42,
     )
 
     assert result.file_name == "sample.c"
@@ -32,4 +35,5 @@ def test_file_scan_result_flags():
 
     assert result.converted is True
     assert result.skipped is False
+    assert result.ai_fix_enabled is False
 
