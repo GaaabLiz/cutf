@@ -3,6 +3,7 @@ import os
 import chardet
 import rich
 
+from cutf.controller.aiFixController import fix_wrong_chars_with_ai
 from cutf.controller.fileChecker import check_illegal_chars
 from cutf.model.AppSetting import AppSetting
 from cutf.model.FileScanResult import FileScanResult
@@ -55,6 +56,27 @@ def handle_file(file_path: str, setting: AppSetting) -> FileScanResult:
         is_already_utf8 = (
             encoding.lower() in {"utf-8", "utf-8-sig", "utf-16", "utf-16le", "utf-16be"}
         )
+
+        if setting.fix_wrong_with_ai:
+            rich.print(
+                f"File \"{file_name}\" has encoding {encoding}. Proceeding to interactively fix replacement characters..."
+            )
+            ai_summary = fix_wrong_chars_with_ai(file_path, encoding, setting)
+            if setting.verbose:
+                rich.print(f"Finished AI fixing flow for file \"{file_name}\"!")
+            return FileScanResult(
+                file_path=file_path,
+                file_name=file_name,
+                encoding_before=encoding,
+                check_missing_char=ai_summary.remaining_occurrences,
+                skipped=ai_summary.total_missing_chars == 0,
+                ai_fix_enabled=True,
+                ai_total_missing_chars=ai_summary.total_missing_chars,
+                ai_applied_fixes=ai_summary.applied_fixes,
+                ai_skipped_fixes=ai_summary.skipped_fixes,
+                ai_retry_count=ai_summary.retry_count,
+                ai_failed_fixes=ai_summary.failed_fixes,
+            )
 
         # Check if need to be converted
         needs_convert = (not is_already_utf8) and setting.convert

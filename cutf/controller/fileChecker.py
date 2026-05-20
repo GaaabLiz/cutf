@@ -3,7 +3,34 @@ import os
 import rich
 
 from cutf.model.MissingCharResult import MissingCharResult
-from cutf.util.code import is_line_commented
+from cutf.util.textfile import compute_byte_offset, read_text_file_state
+
+
+def _is_line_commented(line_text: str, in_block_comment: bool) -> tuple[bool, bool]:
+    """Evaluate whether the current line should be considered a comment."""
+    stripped_line = line_text.strip().lstrip("\ufeff")
+
+    if in_block_comment:
+        return True, "*/" not in stripped_line
+
+    if stripped_line.startswith("//"):
+        return True, False
+
+    if "/*" in stripped_line:
+        start_index = stripped_line.find("/*")
+        end_index = stripped_line.find("*/", start_index + 2)
+        return False, end_index == -1
+
+    return False, False
+
+
+def _strip_line_ending(line_text: str) -> str:
+    """Remove only the newline suffix from a line preserving other whitespace."""
+    if line_text.endswith("\r\n"):
+        return line_text[:-2]
+    if line_text.endswith("\n") or line_text.endswith("\r"):
+        return line_text[:-1]
+    return line_text
 
 
 def check_illegal_chars(file_path: str, source_encoding: str) -> list[MissingCharResult]:
@@ -23,17 +50,9 @@ def check_illegal_chars(file_path: str, source_encoding: str) -> list[MissingCha
         RuntimeError: If the file cannot be decoded using ``source_encoding``.
     """
     results = []
-    with open(file_path, "rb") as f:
-        raw_data = f.read()
-
-    # Verifica e gestisci il BOM per UTF-8
-    bom = b"\xef\xbb\xbf"
-    if raw_data.startswith(bom):
-        raw_data = raw_data[len(bom) :]
-
-    # Decodifica i byte usando l'encoding specificato (per esempio UTF-8)
     try:
-        text_data = raw_data.decode(source_encoding, errors="replace")
+        file_state = read_text_file_state(file_path, source_encoding)
+        text_data = file_state.text
     except UnicodeDecodeError:
         rich.print(
             f"\t[bold red]Error decoding file {os.path.basename(file_path)} "
@@ -41,46 +60,40 @@ def check_illegal_chars(file_path: str, source_encoding: str) -> list[MissingCha
         )
         raise RuntimeError(f"Error decoding file {os.path.basename(file_path)} during check_illegal_chars().")
 
-    # Itera sui caratteri per trovare il carattere illegale
-    for idx in range(len(raw_data) - 2):  # -2 per evitare di uscire fuori dal range durante il confronto
-        if raw_data[idx] == 0xEF and raw_data[idx + 1] == 0xBF and raw_data[idx + 2] == 0xBD:
-            line_start = text_data.rfind("\n", 0, idx)
-            line_end = text_data.find("\n", idx)
+    in_block_comment = False
+    absolute_char_index = 0
+    for line_number, line_with_end in enumerate(text_data.splitlines(keepends=True), start=1):
+        line = _strip_line_ending(line_with_end)
+        line_is_commented, in_block_comment = _is_line_commented(line, in_block_comment)
 
-            # Ottieni la riga completa dove e presente l'errore
-            if line_end == -1:
-                line_end = len(text_data)
+        search_start = 0
+        while True:
+            char_pos_in_line = line.find("�", search_start)
+            if char_pos_in_line == -1:
+                break
 
-            line = text_data[line_start + 1:line_end]
-            # Trova la posizione relativa all'interno della riga
-            char_pos_in_line = line.find("�")
+            char_index = absolute_char_index + char_pos_in_line
+            byte_offset = compute_byte_offset(text_data, file_state, char_index)
 
-            line_number = text_data.count("\n", 0, idx) + 1
-
-            # Stampa il risultato formattato
             rich.print(
-                f"\t[bold yellow]Found illegal character at position {idx}, "
+                f"\t[bold yellow]Found illegal character at position {byte_offset}, "
                 f"line {line_number} in file {os.path.basename(file_path)}[/bold yellow]"
             )
-            # Creiamo una versione evidenziata della riga
-            # highlighted_line = (
-            #     line[:char_pos_in_line]
-            #     + f"[bold red]{line[char_pos_in_line]}[/bold red]"
-            #     + line[char_pos_in_line + 1:]
-            # )
-            # rich.print("\t" + highlighted_line)
 
-            # Aggiungi il risultato all'array, utilizzando MissingCharResult
-            result = MissingCharResult(
-                is_commented=is_line_commented(file_path, line_number),
-                string=line.lstrip(" \t"),
-                line=line_number,
-                file_name=os.path.basename(file_path),
-                char_position=char_pos_in_line,
-                char_found=char_pos_in_line != -1,
-                byte_sequence_file_pos=idx,
+            results.append(
+                MissingCharResult(
+                    is_commented=line_is_commented,
+                    string=line.lstrip(" \t"),
+                    line=line_number,
+                    file_name=os.path.basename(file_path),
+                    char_position=char_pos_in_line,
+                    char_found=True,
+                    byte_sequence_file_pos=byte_offset,
+                    absolute_char_index=char_index,
+                )
             )
+            search_start = char_pos_in_line + 1
 
-            results.append(result)
+        absolute_char_index += len(line_with_end)
 
     return results

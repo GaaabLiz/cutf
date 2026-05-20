@@ -85,6 +85,25 @@ def __print_skipped_error_files(results: list[FileScanResult]):
         rich.print("0 errors founds.")
 
 
+def __print_ai_fix_summary(results: list[FileScanResult]):
+    """Print an aggregate summary for interactive AI-fix runs."""
+    ai_results = [result for result in results if result.ai_fix_enabled]
+    if not ai_results:
+        return
+
+    rich.print("@ AI fix summary:")
+    rich.print(f"Files processed with AI fix: {len(ai_results)}")
+    rich.print(f"Replacement chars found: {sum(result.ai_total_missing_chars for result in ai_results)}")
+    rich.print(f"Fixes applied: {sum(result.ai_applied_fixes for result in ai_results)}")
+    rich.print(f"Skipped by user: {sum(result.ai_skipped_fixes for result in ai_results)}")
+    rich.print(f"Retries requested: {sum(result.ai_retry_count for result in ai_results)}")
+    rich.print(f"Failed fixes: {sum(result.ai_failed_fixes for result in ai_results)}")
+    rich.print(
+        "Remaining replacement chars: "
+        f"{sum(len(result.check_missing_char or []) for result in ai_results)}"
+    )
+
+
 def __print_missing_chars_on_comments(results: list[FileScanResult], print_mis_char_string: bool):
     """Print missing character occurrences detected in comments.
 
@@ -146,6 +165,9 @@ def print_results(results: list[FileScanResult], setting: AppSetting):
 
     # Print list of encoding before all
     __print_encoding_before(results)
+    rich.print("\n")
+
+    __print_ai_fix_summary(results)
     rich.print("\n")
 
     # Print file converted
