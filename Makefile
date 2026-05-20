@@ -159,7 +159,7 @@ install-inno:
 #  requires_python, and authors as module-level constants.
 .PHONY: gen-project-py
 gen-project-py:
-	uv run python .mk-scripts/gen-project-py "$(FILE_PROJECT_TOML)" "$(FILE_PROJECT_PY_GENERATED)"
+	uv run python .mk/gen-project-py "$(FILE_PROJECT_TOML)" "$(FILE_PROJECT_PY_GENERATED)"
 
 ## gen-logo-icons SVG=<path>  – Convert a .svg file to .ico/.png/.jpg/.icns in all standard sizes
 #
@@ -176,7 +176,7 @@ gen-logo-icons:
 		echo "Usage: make gen-logo-icons SVG=resources/logo.svg"; \
 		exit 1; \
 	fi
-	uv run python .mk-scripts/convert_logo.py "$(SVG)"
+	uv run python .mk/convert_logo.py "$(SVG)"
 
 ## gen-inno-iss         – Generate $(INNO_SETUP_FILE) from project.mk installer variables
 #
@@ -826,4 +826,3 @@ ci-print-windows-installer-enabled: ci-windows-installer
 ## ci-print-release-artifacts – Legacy alias of ci-release-artifacts
 .PHONY: ci-print-release-artifacts
 ci-print-release-artifacts: ci-release-artifacts
-

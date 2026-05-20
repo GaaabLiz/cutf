@@ -3,7 +3,7 @@
 convert_logo.py – Convert a .svg logo to all standard icon/image formats.
 
 Usage:
-    uv run python .mk-scripts/convert_logo.py <path/to/logo.svg>
+    uv run python .mk/convert_logo.py <path/to/logo.svg>
 
 Generates in the SAME directory as the source SVG:
   • PNG  – 16, 32, 48, 64, 128, 256, 512, 1024 px
@@ -180,8 +180,6 @@ def convert(svg_path: Path) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python convert_logo.py <path/to/logo.svg>", file=sys.stderr)
+        print("Usage: python .mk/convert_logo.py <path/to/logo.svg>", file=sys.stderr)
         sys.exit(1)
     convert(Path(sys.argv[1]))
-
-
