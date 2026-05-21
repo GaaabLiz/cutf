@@ -28,6 +28,7 @@ def test_missing_char_result_fields():
     assert result.file_name == "sample.c"
     assert result.line == 12
     assert result.char_found is True
+    assert result.comment_context == "code"
 
 
 def test_file_scan_result_flags():

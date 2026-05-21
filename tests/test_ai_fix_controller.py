@@ -101,3 +101,22 @@ def test_fix_wrong_chars_with_ai_marks_unencodable_write_as_failure(tmp_path: Pa
 
     assert summary.applied_fixes == 0
     assert summary.failed_fixes == 1
+
+
+def test_fix_wrong_chars_with_ai_skips_non_visible_replacement_sequences(tmp_path: Path):
+    file_path = tmp_path / "sample.txt"
+    file_path.write_bytes(b"// questo \xef\xbf\xbd esempio\n")
+
+    summary = fix_wrong_chars_with_ai(
+        str(file_path),
+        "cp1252",
+        _setting(),
+        input_fn=lambda _: (_ for _ in ()).throw(AssertionError("input_fn should not be called")),
+        propose_fn=lambda **_: (_ for _ in ()).throw(AssertionError("propose_fn should not be called")),
+    )
+
+    assert summary.total_missing_chars == 1
+    assert summary.applied_fixes == 0
+    assert summary.failed_fixes == 0
+    assert len(summary.remaining_occurrences or []) == 1
+    assert summary.remaining_occurrences[0].char_found is False
