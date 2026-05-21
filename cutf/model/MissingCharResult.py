@@ -6,7 +6,9 @@ class MissingCharResult:
     """Details about one replacement-character occurrence in a file.
 
     Attributes:
-        is_commented: ``True`` if the line is considered part of a comment.
+        is_commented: ``True`` if the detected character is inside a comment.
+        comment_context: Comment classification for the detected character.
+            Supported values are ``comment``, ``code``, and ``unsupported``.
         string: Original line content where the issue was found.
         line: 1-based line number in the file.
         file_name: Name of the file that contains the issue.
@@ -22,4 +24,5 @@ class MissingCharResult:
     char_position: int
     char_found: bool
     byte_sequence_file_pos: int
+    comment_context: str = "code"
     absolute_char_index: int | None = None
