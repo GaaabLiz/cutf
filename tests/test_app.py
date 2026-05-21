@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from cutf import app
@@ -161,6 +163,101 @@ def test_main_directory_flow(monkeypatch):
     rc = app.main(["--path", "/tmp/src", "--convert", "--extensions", ".py", ".cpp"], confirm_fn=lambda: None)
 
     assert rc == 0
-    assert handled_paths == ["/tmp/src/a.py", "/tmp/src/nested/b.cpp"]
+    assert handled_paths == [os.path.join("/tmp/src", "a.py"), os.path.join("/tmp/src/nested", "b.cpp")]
+
+
+def test_main_flattens_skip_dir_values(monkeypatch):
+    captured_skip_dirs = []
+
+    monkeypatch.setattr("cutf.app.os.path.isfile", lambda _: True)
+    monkeypatch.setattr("cutf.app.check_path_file", lambda _: None)
+    monkeypatch.setattr("cutf.app.is_command_available", lambda _: True)
+
+    def fake_handle(path, setting):
+        _ = path
+        captured_skip_dirs.append(setting.skip_dirs)
+        return "ok"
+
+    def fake_print_results(results, setting):
+        _ = setting
+        assert results == ["ok"]
+
+    monkeypatch.setattr("cutf.app.handle_file", fake_handle)
+    monkeypatch.setattr("cutf.app.print_results", fake_print_results)
+
+    rc = app.main(
+        [
+            "--path",
+            "/tmp/a.txt",
+            "--checks",
+            "--extensions",
+            ".txt",
+            "--skip-dir",
+            ".git",
+            "node_modules",
+            "--skip-dir",
+            ".venv",
+        ],
+        confirm_fn=lambda: None,
+    )
+
+    assert rc == 0
+    assert captured_skip_dirs == [[os.path.normcase(".git"), os.path.normcase("node_modules"), os.path.normcase(".venv")]]
+
+
+def test_main_directory_flow_skips_named_directories(monkeypatch):
+    handled_paths = []
+    printed_messages = []
+
+    monkeypatch.setattr("cutf.app.os.path.isfile", lambda _: False)
+    monkeypatch.setattr("cutf.app.check_path_dir", lambda _: None)
+    monkeypatch.setattr("cutf.app.is_command_available", lambda _: True)
+
+    def fake_walk(_):
+        dirs = [".git", "nested"]
+        yield ("/tmp/src", dirs, ["a.py"])
+        if ".git" in dirs:
+            yield ("/tmp/src/.git", [], ["ignored.py"])
+        if "nested" in dirs:
+            yield ("/tmp/src/nested", [], ["b.cpp"])
+
+    def fake_print(*args, **kwargs):
+        _ = kwargs
+        printed_messages.append(" ".join(str(arg) for arg in args))
+
+    def fake_handle(path, setting):
+        _ = setting
+        handled_paths.append(path)
+        return path
+
+    def fake_print_results(results, setting):
+        _ = setting
+        assert results == handled_paths
+
+    monkeypatch.setattr("cutf.app.os.walk", fake_walk)
+    monkeypatch.setattr("cutf.app.rich.print", fake_print)
+    monkeypatch.setattr("cutf.app.handle_file", fake_handle)
+    monkeypatch.setattr("cutf.app.print_results", fake_print_results)
+
+    rc = app.main(
+        [
+            "--path",
+            "/tmp/src",
+            "--convert",
+            "--extensions",
+            ".py",
+            ".cpp",
+            "--skip-dir",
+            ".git",
+        ],
+        confirm_fn=lambda: None,
+    )
+
+    assert rc == 0
+    assert handled_paths == [os.path.join("/tmp/src", "a.py"), os.path.join("/tmp/src/nested", "b.cpp")]
+    assert any(
+        "Skipping directory" in message and os.path.join("/tmp/src", ".git") in message
+        for message in printed_messages
+    )
 
 
