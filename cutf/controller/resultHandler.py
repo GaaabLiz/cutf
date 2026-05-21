@@ -1,10 +1,55 @@
 from collections import Counter
 
 import rich
+from rich.table import Table
 
 from cutf.model import AppSetting
 from cutf.model.FileScanResult import FileScanResult
-from cutf.util.log import format_log_error
+from cutf.util.code import COMMENT_CONTEXT_CODE, COMMENT_CONTEXT_COMMENT, COMMENT_CONTEXT_UNSUPPORTED
+
+
+def _iter_missing_char_findings(results: list[FileScanResult]):
+    """Yield every missing-char finding collected in ``results``."""
+    for result in results:
+        for finding in result.check_missing_char or []:
+            yield finding
+
+
+def _build_missing_char_table(
+    title: str,
+    findings: list,
+    print_mis_char_string: bool,
+    empty_message: str,
+) -> Table:
+    """Build a Rich table for a slice of missing-character findings."""
+    table = Table(title=title)
+    table.add_column("File", style="cyan")
+    table.add_column("Visible", justify="center", style="magenta")
+    table.add_column("Line", justify="right", style="green")
+    table.add_column("Line Pos", justify="right")
+    table.add_column("File Pos", justify="right")
+    if print_mis_char_string:
+        table.add_column("String")
+
+    if findings:
+        for finding in findings:
+            row = [
+                finding.file_name,
+                str(finding.char_found),
+                str(finding.line),
+                str(finding.char_position),
+                str(finding.byte_sequence_file_pos),
+            ]
+            if print_mis_char_string:
+                row.append(finding.string)
+            table.add_row(*row)
+    else:
+        row = [empty_message, "", "", "", ""]
+        if print_mis_char_string:
+            row.append("")
+        table.add_row(*row)
+
+    return table
 
 
 def __print_encoding_before(results: list[FileScanResult]):
@@ -24,20 +69,31 @@ def __print_encoding_before(results: list[FileScanResult]):
             encoding_counter[result.encoding_before] += 1
             files_with_detected_encoding += 1
 
-    # Stampa ogni encoding e il numero di occorrenze
-    rich.print(f"@ List of encodings found during scanning ({len(encoding_counter.items())}):")
-    rich.print(
-        "Files with detected encoding: "
-        f"{files_with_detected_encoding}/{total_files}"
-    )
-    if files_with_detected_encoding != total_files:
-        rich.print(
-            "Files without detected encoding in this table: "
-            f"{total_files - files_with_detected_encoding} "
-            "(for example unsupported extension or early processing error)"
+    table = Table(
+        title=(
+            "Encodings found during scanning "
+            f"({files_with_detected_encoding}/{total_files} files with detected encoding)"
         )
-    for encoding, count in encoding_counter.items():
-        rich.print(f"{encoding}: {count}")
+    )
+    table.add_column("Encoding", style="cyan")
+    table.add_column("Files", justify="right", style="magenta")
+    table.add_column("Notes")
+
+    if encoding_counter:
+        for encoding, count in sorted(encoding_counter.items(), key=lambda item: (-item[1], item[0])):
+            table.add_row(encoding, str(count), "")
+    else:
+        table.add_row("No detected encoding", "0", "")
+
+    missing_encoding_count = total_files - files_with_detected_encoding
+    if missing_encoding_count:
+        table.add_row(
+            "Undetected or skipped early",
+            str(missing_encoding_count),
+            "Unsupported extension or early processing error",
+        )
+
+    rich.print(table)
 
 
 def __print_converted_files(results: list[FileScanResult]):
@@ -46,14 +102,22 @@ def __print_converted_files(results: list[FileScanResult]):
     Args:
         results: Collection of per-file scan outcomes.
     """
+    table = Table(title="Converted files")
+    table.add_column("File", style="cyan")
+    table.add_column("From", style="magenta")
+    table.add_column("To", style="green")
     count = 0
-    rich.print("@ List of converted files:")
     for result in results:
         if result.converted:
             count += 1
-            rich.print(f"Converted file {result.file_name} from encoding {result.encoding_before} to encoding {result.encoding_after}.")
+            table.add_row(
+                result.file_name,
+                result.encoding_before or "Unknown",
+                result.encoding_after or "Unknown",
+            )
     if count == 0:
-        rich.print("0 Files converted.")
+        table.add_row("No converted files", "", "")
+    rich.print(table)
 
 
 def __print_skipped_files(results: list[FileScanResult], print_all: bool):
@@ -63,23 +127,27 @@ def __print_skipped_files(results: list[FileScanResult], print_all: bool):
         results: Collection of per-file scan outcomes.
         print_all: If ``True``, prints one row per skipped file.
     """
-    count = 0
-    rich.print("@ List of skipped files:")
     if print_all:
+        table = Table(title="Skipped files")
+        table.add_column("File", style="cyan")
+        table.add_column("Reason")
+        count = 0
         for result in results:
             if result.skipped:
                 count += 1
-                rich.print(f"File {result.file_name} skipped because no action is required.")
+                table.add_row(result.file_name, "No action was required")
         if count == 0:
-            rich.print("0 skipped file founds.")
+            table.add_row("No skipped files", "")
     else:
+        table = Table(title="Skipped files")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", justify="right", style="magenta")
+        count = 0
         for result in results:
             if result.skipped:
                 count += 1
-        if count == 0:
-            rich.print("0 skipped file founds.")
-        else:
-            rich.print(f"{count} file skipped because no action was required.")
+        table.add_row("Files skipped because no action was required", str(count))
+    rich.print(table)
 
 
 def __print_skipped_error_files(results: list[FileScanResult]):
@@ -88,33 +156,36 @@ def __print_skipped_error_files(results: list[FileScanResult]):
     Args:
         results: Collection of per-file scan outcomes.
     """
+    table = Table(title="Skipped files from errors")
+    table.add_column("File", style="cyan")
+    table.add_column("Error")
     count = 0
-    rich.print("@ List of skipped files (from errors):")
     for result in results:
         if result.error_skipped:
             count += 1
-            rich.print(format_log_error(f"File {result.file_path} skipped because of an error: {result.error_description}"))
+            table.add_row(result.file_path, result.error_description or "Unknown error")
     if count == 0:
-        rich.print("0 errors founds.")
+        table.add_row("No processing errors", "")
+    rich.print(table)
 
 
 def __print_ai_fix_summary(results: list[FileScanResult]):
     """Print an aggregate summary for interactive AI-fix runs."""
     ai_results = [result for result in results if result.ai_fix_enabled]
-    if not ai_results:
-        return
-
-    rich.print("@ AI fix summary:")
-    rich.print(f"Files processed with AI fix: {len(ai_results)}")
-    rich.print(f"Replacement chars found: {sum(result.ai_total_missing_chars for result in ai_results)}")
-    rich.print(f"Fixes applied: {sum(result.ai_applied_fixes for result in ai_results)}")
-    rich.print(f"Skipped by user: {sum(result.ai_skipped_fixes for result in ai_results)}")
-    rich.print(f"Retries requested: {sum(result.ai_retry_count for result in ai_results)}")
-    rich.print(f"Failed fixes: {sum(result.ai_failed_fixes for result in ai_results)}")
-    rich.print(
-        "Remaining replacement chars: "
-        f"{sum(len(result.check_missing_char or []) for result in ai_results)}"
+    table = Table(title="AI fix summary")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", justify="right", style="magenta")
+    table.add_row("Files processed with AI fix", str(len(ai_results)))
+    table.add_row("Replacement chars found", str(sum(result.ai_total_missing_chars for result in ai_results)))
+    table.add_row("Fixes applied", str(sum(result.ai_applied_fixes for result in ai_results)))
+    table.add_row("Skipped by user", str(sum(result.ai_skipped_fixes for result in ai_results)))
+    table.add_row("Retries requested", str(sum(result.ai_retry_count for result in ai_results)))
+    table.add_row("Failed fixes", str(sum(result.ai_failed_fixes for result in ai_results)))
+    table.add_row(
+        "Remaining replacement chars",
+        str(sum(len(result.check_missing_char or []) for result in ai_results)),
     )
+    rich.print(table)
 
 
 def __print_missing_chars_on_comments(results: list[FileScanResult], print_mis_char_string: bool):
@@ -124,15 +195,19 @@ def __print_missing_chars_on_comments(results: list[FileScanResult], print_mis_c
         results: Collection of per-file scan outcomes.
         print_mis_char_string: If ``True``, include the original line string.
     """
-    rich.print("@ List of missing chars found on comments:")
-    for result in results:
-        if result.check_missing_char is not None:
-            for file in result.check_missing_char:
-                if file.is_commented:
-                    rich.print(f"File = {file.file_name} | Missing char Visibile = {file.char_found} | Line = {file.line} | Line Pos = {file.char_position} | File pos = {file.byte_sequence_file_pos}")
-                    if print_mis_char_string:
-                        rich.print(f"String = {file.string}")
-                        rich.print("-------------------")
+    findings = [
+        finding
+        for finding in _iter_missing_char_findings(results)
+        if finding.comment_context == COMMENT_CONTEXT_COMMENT
+    ]
+    rich.print(
+        _build_missing_char_table(
+            "Missing chars found in comments",
+            findings,
+            print_mis_char_string,
+            "No missing chars found in comments",
+        )
+    )
 
 
 def __print_missing_chars_on_code(results: list[FileScanResult], print_mis_char_string: bool, only_relevant: bool):
@@ -143,23 +218,36 @@ def __print_missing_chars_on_code(results: list[FileScanResult], print_mis_char_
         print_mis_char_string: If ``True``, include the original line string.
         only_relevant: If ``True``, hide missing-char entries where the symbol is not visible.
     """
-    rich.print("@ List of missing chars found on code:")
-    count = 0
-    for result in results:
-        if result.check_missing_char is not None:
-            for file in result.check_missing_char:
-                if not file.is_commented:
-                    count += 1
-                    if file.char_found:
-                        rich.print(f"File = {file.file_name} | Missing char Visibile = {file.char_found} | Line = {file.line} | Line Pos = {file.char_position} | File pos = {file.byte_sequence_file_pos}")
-                    else:
-                        if not only_relevant:
-                            rich.print(f"File = {file.file_name} | Missing char Visibile = {file.char_found} | Line = {file.line} | Line Pos = {file.char_position} | File pos = {file.byte_sequence_file_pos}")
-                    if print_mis_char_string:
-                        rich.print(f"String = {file.string}")
-                        rich.print("-------------------")
-    if count == 0:
-        rich.print("0 missing chars on code founds.")
+    findings = [
+        finding
+        for finding in _iter_missing_char_findings(results)
+        if finding.comment_context == COMMENT_CONTEXT_CODE and (finding.char_found or not only_relevant)
+    ]
+    rich.print(
+        _build_missing_char_table(
+            "Missing chars found in code",
+            findings,
+            print_mis_char_string,
+            "No missing chars found in code",
+        )
+    )
+
+
+def __print_missing_chars_on_unsupported(results: list[FileScanResult], print_mis_char_string: bool):
+    """Print missing characters found in files without supported comment analysis."""
+    findings = [
+        finding
+        for finding in _iter_missing_char_findings(results)
+        if finding.comment_context == COMMENT_CONTEXT_UNSUPPORTED
+    ]
+    rich.print(
+        _build_missing_char_table(
+            "Missing chars in unsupported comment-analysis files",
+            findings,
+            print_mis_char_string,
+            "No missing chars found in unsupported comment-analysis files",
+        )
+    )
 
 
 def print_results(results: list[FileScanResult], setting: AppSetting):
@@ -199,6 +287,9 @@ def print_results(results: list[FileScanResult], setting: AppSetting):
     if not setting.print_result_only_relevant:
         __print_missing_chars_on_comments(results, setting.print_missing_char_str)
         rich.print("\n")
+
+    __print_missing_chars_on_unsupported(results, setting.print_missing_char_str)
+    rich.print("\n")
 
     # Missing chars (code)
     __print_missing_chars_on_code(results, setting.print_missing_char_str, setting.print_result_only_relevant)
