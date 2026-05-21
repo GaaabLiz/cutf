@@ -1,3 +1,22 @@
+## [0.0.15] - 2026-05-21
+
+### 🚀 Features
+
+- Enhance missing character classification with robust comment awareness for specific file extensions
+- Improve character replacement detection and enhance comment context classification
+- Enhance missing character reporting with structured tables for comments, code, and unsupported files
+- Clarify attributes in MissingCharResult for better comment context understanding
+- Add decode_encoding attribute to TextFileState for improved encoding handling
+- Enhance test coverage for character context classification and result handling
+- Update changelog for version 0.0.14 with file extension detection enhancements
+
+### 💼 Other
+
+- V0.0.15
+
+### ⚙️ Miscellaneous Tasks
+
+- Update changelog [skip ci]
 ## [0.0.14] - 2026-05-21
 
 ### 🚀 Features
