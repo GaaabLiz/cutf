@@ -14,15 +14,28 @@ def __print_encoding_before(results: list[FileScanResult]):
         results: Collection of per-file scan outcomes.
     """
     encoding_counter = Counter()
+    total_files = len(results)
+    files_with_detected_encoding = 0
 
     # Scorri ogni FileScanResult
     for result in results:
         # Aggiungi l'encoding_before se non e None
         if result.encoding_before:
             encoding_counter[result.encoding_before] += 1
+            files_with_detected_encoding += 1
 
     # Stampa ogni encoding e il numero di occorrenze
     rich.print(f"@ List of encodings found during scanning ({len(encoding_counter.items())}):")
+    rich.print(
+        "Files with detected encoding: "
+        f"{files_with_detected_encoding}/{total_files}"
+    )
+    if files_with_detected_encoding != total_files:
+        rich.print(
+            "Files without detected encoding in this table: "
+            f"{total_files - files_with_detected_encoding} "
+            "(for example unsupported extension or early processing error)"
+        )
     for encoding, count in encoding_counter.items():
         rich.print(f"{encoding}: {count}")
 
