@@ -1,3 +1,20 @@
+## [0.0.12] - 2026-05-21
+
+### 🚀 Features
+
+- Add 'uv' option to terminal auto-approval settings
+- Add --skip-dir option to exclude specified directories during recursive scans
+- Add --skip-dir option to exclude specified directories during recursive scans
+- Add tests for handling skip directories in main flow
+- Update changelog for version 0.0.11
+
+### 💼 Other
+
+- V0.0.12
+
+### ⚙️ Miscellaneous Tasks
+
+- Update changelog [skip ci]
 ## [0.0.11] - 2026-05-21
 
 ### 🚀 Features
