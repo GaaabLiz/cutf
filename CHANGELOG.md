@@ -1,3 +1,16 @@
+## [0.0.11] - 2026-05-21
+
+### 🚀 Features
+
+- Enhance encoding detection reporting in __print_encoding_before function
+
+### 💼 Other
+
+- V0.0.11
+
+### ⚙️ Miscellaneous Tasks
+
+- Update changelog [skip ci]
 ## [0.0.10] - 2026-05-20
 
 ### 🚀 Features
