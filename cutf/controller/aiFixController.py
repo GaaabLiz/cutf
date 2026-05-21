@@ -69,11 +69,30 @@ def fix_wrong_chars_with_ai(
     if not initial_occurrences:
         return summary
 
+    visible_occurrences = [
+        occurrence
+        for occurrence in initial_occurrences
+        if occurrence.char_found and occurrence.absolute_char_index is not None
+    ]
+
+    if not visible_occurrences:
+        rich.print(
+            f"Found {len(initial_occurrences)} replacement-byte sequence(s) in {format_log_path(file_path)}, "
+            f"but none are visible under {source_encoding}. AI fix only handles visible replacement characters."
+        )
+        return summary
+
     rich.print(
         f"Found {len(initial_occurrences)} replacement character(s) in {format_log_path(file_path)}."
     )
 
-    for occurrence in initial_occurrences:
+    hidden_occurrences = len(initial_occurrences) - len(visible_occurrences)
+    if hidden_occurrences:
+        rich.print(
+            f"Skipping {hidden_occurrences} occurrence(s) that are not visible under {source_encoding}."
+        )
+
+    for occurrence in visible_occurrences:
         absolute_char_index = occurrence.absolute_char_index
         if absolute_char_index is None:
             summary.failed_fixes += 1
