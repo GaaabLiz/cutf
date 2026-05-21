@@ -35,3 +35,4 @@ class AppSetting:
     fix_wrong_with_ai: bool = False
     ai_ollama_url: str | None = None
     ai_model: str = "qwen2.5:1.5b-instruct"
+    list_extension: bool = False

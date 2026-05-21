@@ -1,10 +1,12 @@
 import argparse
+from collections import Counter
 import os
 import sys
 from pathlib import Path
 from shutil import which
 
 import rich
+from rich.table import Table
 
 from cutf.controller.fileController import handle_file
 from cutf.controller.resultHandler import print_results
@@ -12,6 +14,7 @@ from cutf.model.AppSetting import AppSetting
 from cutf.util.log import format_log_error, format_log_path, format_log_warning
 
 DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b-instruct"
+NO_EXTENSION_LABEL = "(no extension)"
 
 
 def get_executable_directory() -> Path:
@@ -122,6 +125,58 @@ def is_command_available(command: str) -> bool:
     return which(command) is not None
 
 
+def collect_extensions(path: str, is_file: bool, skip_dirs: list[str]) -> tuple[Counter[str], int]:
+    """Collect file-extension counts for the selected file or directory tree.
+
+    Args:
+        path: Input file or directory path.
+        is_file: ``True`` when ``path`` is a single file.
+        skip_dirs: Directory names to prune during recursive walks.
+
+    Returns:
+        tuple[Counter[str], int]: Extension counts and number of scanned files.
+    """
+    extension_counter: Counter[str] = Counter()
+    scanned_files = 0
+
+    def add_file(file_name: str) -> None:
+        extension = os.path.splitext(file_name)[1].lower() or NO_EXTENSION_LABEL
+        extension_counter[extension] += 1
+
+    if is_file:
+        scanned_files = 1
+        add_file(path)
+        return extension_counter, scanned_files
+
+    skip_dir_names = set(skip_dirs)
+    for root, dirs, files in os.walk(path):
+        skipped_dirs = [dir_name for dir_name in dirs if os.path.normcase(dir_name) in skip_dir_names]
+        if skipped_dirs:
+            dirs[:] = [dir_name for dir_name in dirs if os.path.normcase(dir_name) not in skip_dir_names]
+            for dir_name in skipped_dirs:
+                skipped_path = os.path.join(root, dir_name)
+                rich.print(f"{format_log_warning('Skipping directory')} {format_log_path(skipped_path)}")
+        for file_name in files:
+            scanned_files += 1
+            add_file(file_name)
+
+    return extension_counter, scanned_files
+
+
+def print_extension_table(extension_counter: Counter[str], scanned_files: int, path: str) -> None:
+    """Print a Rich table with all extensions found under the selected path."""
+    table = Table(title=f"Extensions found in {path}")
+    table.add_column("Extension", style="cyan")
+    table.add_column("Files", justify="right", style="magenta")
+
+    for extension, count in sorted(extension_counter.items(), key=lambda item: (-item[1], item[0])):
+        table.add_row(extension, str(count))
+
+    rich.print(table)
+    rich.print(f"Files scanned for extension listing: {scanned_files}")
+    rich.print(f"Unique extensions found: {len(extension_counter)}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build and return the CLI argument parser.
 
@@ -182,6 +237,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Directory names to skip during recursive scans, for example: .git node_modules",
     )
+    parser.add_argument(
+        "--list-extension",
+        action="store_true",
+        help="List all file extensions found under --path and print them in a Rich table.",
+    )
     return parser
 
 
@@ -202,13 +262,39 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
     args = parser.parse_args(argv)
 
     # Check CLI params
-    if not (args.checks or args.convert or args.all or args.fix_wrong_with_ai):
+    if not (args.checks or args.convert or args.all or args.fix_wrong_with_ai or args.list_extension):
         rich.print(format_log_error("At least one operation flag must be set."))
         raise SystemExit(1)
-    if args.fix_wrong_with_ai and (args.checks or args.convert or args.all):
-        rich.print(format_log_error("--fix-wrong-with-ai cannot be combined with --checks, --convert, or --all."))
+    if args.fix_wrong_with_ai and (args.checks or args.convert or args.all or args.list_extension):
+        rich.print(
+            format_log_error(
+                "--fix-wrong-with-ai cannot be combined with --checks, --convert, --all, or --list-extension."
+            )
+        )
         raise SystemExit(1)
-    if not args.extensions:
+    if args.list_extension and (args.checks or args.convert or args.all or args.fix_wrong_with_ai):
+        rich.print(
+            format_log_error(
+                "--list-extension cannot be combined with --checks, --convert, --all, or --fix-wrong-with-ai."
+            )
+        )
+        raise SystemExit(1)
+    if args.list_extension and any(
+        [
+            args.ai_ollama_url,
+            args.copyOld,
+            args.printMissingCharString,
+            args.printAllSkippedFile,
+            args.verbose,
+            args.only_relevant,
+            args.extensions,
+        ]
+    ):
+        rich.print(
+            format_log_error("--list-extension can only be combined with --path and optional --skip-dir.")
+        )
+        raise SystemExit(1)
+    if not args.list_extension and not args.extensions:
         rich.print(format_log_error("At least one file extension must be provided with --extensions."))
         raise SystemExit(1)
 
@@ -217,6 +303,7 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
     enable_checks = bool(args.checks or args.all)
     enable_convert = bool(args.convert or args.all)
     enable_ai_fix = bool(args.fix_wrong_with_ai)
+    enable_list_extension = bool(args.list_extension)
     skip_dirs = list(
         dict.fromkeys(
             os.path.normcase(value.strip())
@@ -236,12 +323,14 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
         raise SystemExit(1)
 
     rich.print(f"Path to scan: {format_log_path(path)}")
-    rich.print(f"Checks enabled: {enable_checks}")
-    rich.print(f"Conversion enabled: {enable_convert}")
-    rich.print(f"AI fix enabled: {enable_ai_fix}")
-    rich.print(f"Extensions to scan: {args.extensions}")
     rich.print(f"Directories to skip: {skip_dirs}")
-    rich.print(f"Copy old encoded: {args.copyOld}")
+    rich.print(f"List extension mode: {enable_list_extension}")
+    if not enable_list_extension:
+        rich.print(f"Checks enabled: {enable_checks}")
+        rich.print(f"Conversion enabled: {enable_convert}")
+        rich.print(f"AI fix enabled: {enable_ai_fix}")
+        rich.print(f"Extensions to scan: {args.extensions}")
+        rich.print(f"Copy old encoded: {args.copyOld}")
     if enable_ai_fix:
         rich.print(f"Ollama URL: {ollama_url}")
         rich.print(f"Ollama model: {DEFAULT_OLLAMA_MODEL}")
@@ -253,6 +342,30 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
         check_path_file(path)
     else:
         check_path_dir(path)
+
+    # Create setting object
+    setting = AppSetting(
+        input_path=path,
+        is_file=is_file,
+        extensions=args.extensions or [],
+        checks=enable_checks,
+        convert=enable_convert,
+        copy_old_encoded=args.copyOld,
+        print_missing_char_str=args.printMissingCharString,
+        verbose=args.verbose,
+        print_skipped_file_no_action=args.printAllSkippedFile,
+        print_result_only_relevant=args.only_relevant,
+        skip_dirs=skip_dirs,
+        fix_wrong_with_ai=enable_ai_fix,
+        ai_ollama_url=ollama_url,
+        ai_model=DEFAULT_OLLAMA_MODEL,
+        list_extension=enable_list_extension,
+    )
+
+    if setting.list_extension:
+        extension_counter, scanned_files = collect_extensions(setting.input_path, setting.is_file, setting.skip_dirs)
+        print_extension_table(extension_counter, scanned_files, setting.input_path)
+        return 0
 
     # Check iconv in path
     if not enable_ai_fix and not is_command_available("iconv"):
@@ -281,24 +394,6 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
             "to UTF-8 (with BOM). Proceed? (Enter to continue or CTRL-C to exit)"
         )
     confirm_fn()
-
-    # Create setting object
-    setting = AppSetting(
-        input_path=path,
-        is_file=is_file,
-        extensions=args.extensions,
-        checks=enable_checks,
-        convert=enable_convert,
-        copy_old_encoded=args.copyOld,
-        print_missing_char_str=args.printMissingCharString,
-        verbose=args.verbose,
-        print_skipped_file_no_action=args.printAllSkippedFile,
-        print_result_only_relevant=args.only_relevant,
-        skip_dirs=skip_dirs,
-        fix_wrong_with_ai=enable_ai_fix,
-        ai_ollama_url=ollama_url,
-        ai_model=DEFAULT_OLLAMA_MODEL,
-    )
 
     # Handle file/dir and get results
     count_from_files = 0
