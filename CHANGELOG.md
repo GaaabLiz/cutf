@@ -1,3 +1,17 @@
+## [0.0.14] - 2026-05-21
+
+### 🚀 Features
+
+- Enhance file extension detection and reporting with text/binary classification
+
+### 💼 Other
+
+- V0.0.14
+
+### ⚙️ Miscellaneous Tasks
+
+- Update changelog [skip ci]
+- Update changelog for version 0.0.13
 ## [0.0.13] - 2026-05-21
 
 ### 🚀 Features
