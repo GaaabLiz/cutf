@@ -13,7 +13,22 @@ It can optionally fix those replacement characters interactively through Ollama 
 - Convert files to UTF-8 with BOM through `iconv`.
 - Interactively repair replacement characters through Ollama without changing file encoding.
 - Optional backup copy of original files.
-- Detailed report for converted, skipped, and problematic files.
+- Detailed Rich table report for converted, skipped, and problematic files.
+
+## Missing-char classification
+
+When cutf finds a replacement character (`�`), it now classifies the exact character position instead of treating the whole line as code or comment.
+
+Robust comment-aware classification is currently supported for these extensions:
+
+- `.c`
+- `.cs`
+- `.cpp`
+- `.h`
+- `.hpp`
+- `.py`
+
+For other extensions, cutf still reports the `�` occurrence, but the final results explicitly mark that comment analysis was not supported for that file type.
 
 ## Requirements
 
@@ -99,6 +114,8 @@ usage: cutf --path PATH [--checks] [--convert] [--copyOld]
 - `--printAllSkippedFile`: print every skipped file instead of only the count.
 - `--only-relevant`: hide less relevant missing-character entries.
 - `--verbose`: print extra execution logs.
+
+At the end of processing, cutf renders the final report as Rich tables for encodings, conversions, skipped files, errors, and missing-character findings.
 
 When a matching directory is found, cutf reports the skipped path and does not descend into it.
 

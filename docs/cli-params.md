@@ -114,7 +114,18 @@ Cosa fa realmente:
 1. non converte il file
 2. esegue una scansione del testo decodificato alla ricerca del carattere di sostituzione `�`
 3. calcola per ogni occorrenza linea, posizione nel testo e offset nel file
-4. per ogni occorrenza salva informazioni come linea, posizione, stringa coinvolta e se la riga e commento o codice
+4. per ogni occorrenza salva informazioni come linea, posizione, stringa coinvolta e se il carattere si trova in commento, in codice o in un file con analisi commenti non supportata
+
+Supporto robusto attuale per il riconoscimento commento/codice:
+
+1. `.c`
+2. `.cs`
+3. `.cpp`
+4. `.h`
+5. `.hpp`
+6. `.py`
+
+Per le altre estensioni il tool continua a segnalare il `�`, ma nel report finale indica esplicitamente che la classificazione commento/codice non e supportata per quel tipo di file.
 
 La logica e implementata in [cutf/controller/fileChecker.py](../cutf/controller/fileChecker.py).
 
@@ -182,6 +193,7 @@ Effetto concreto:
 
 1. nel report non vedi solo file, linea e posizione
 2. vedi anche la stringa completa coinvolta
+3. la colonna `String` compare nelle tabelle finali dei missing chars
 
 E usato in:
 
@@ -204,6 +216,7 @@ Comportamento:
 
 1. se il flag non e presente, il report mostra solo il conteggio dei file skipped
 2. se il flag e presente, il report elenca uno per uno tutti i file saltati
+3. in ogni caso il riepilogo finale viene stampato in tabelle `rich`
 
 La logica e in [cutf/controller/resultHandler.py](../cutf/controller/resultHandler.py).
 
@@ -257,6 +270,7 @@ Effetti concreti:
 
 1. nasconde tutta la sezione dei missing chars trovati nei commenti, come in [cutf/controller/resultHandler.py](../cutf/controller/resultHandler.py)
 2. nella sezione del codice nasconde le occorrenze meno utili, come in [cutf/controller/resultHandler.py](../cutf/controller/resultHandler.py)
+3. non nasconde i risultati dei file con analisi commenti non supportata, che vengono mostrati in una tabella dedicata
 
 In pratica:
 
