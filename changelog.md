@@ -1,3 +1,29 @@
+## [0.0.10] - 2026-05-20
+
+### 🚀 Features
+
+- Add project metadata in project.py
+- Add project metadata in project.py
+- Add VSCode settings for terminal auto-approval
+- Add sample code for various encoding tests in C++, C#, and Python
+- Add integration tests and support utilities for encoding conversions
+- Enhance data models with AI-related fields for improved character replacement tracking
+- Implement text file handling with BOM detection and encoding management
+- Add AI-based character fixing tests and update AppSetting for AI integration
+- Aggiungere documentazione dettagliata per i parametri CLI di cutf
+- Implement AI-assisted character fixing and summary reporting
+- Implement Ollama AI integration for interactive character fixing and enhance CLI parameters
+- Aggiornare la documentazione per la modalità di riparazione AI e aggiungere nuove opzioni CLI
+
+### 💼 Other
+
+- V0.0.10
+
+### ⚙️ Miscellaneous Tasks
+
+- Update changelog [skip ci]
+- Rename scripts and update README references from CUFT to CUTF
+- Update .gitignore to include additional Python and environment-related files
 ## [0.0.8] - 2026-05-14
 
 ### 🚀 Features
@@ -7,7 +33,7 @@
 
 ### 🐛 Bug Fixes
 
-- Update import paths from 'cutf' to 'cutf' in test files
+- Update import paths from 'cuft' to 'cutf' in test files
 - Update import paths from 'cuft' to 'cutf' across multiple files
 
 ### 💼 Other
