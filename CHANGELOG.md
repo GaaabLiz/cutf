@@ -1,3 +1,19 @@
+## [0.0.13] - 2026-05-21
+
+### 🚀 Features
+
+- Update changelog for version 0.0.12
+- Add --list-extension option to CLI for listing file extensions found in a directory
+- Add --list-extension option to CLI and update AppSetting model
+- Add tests for --list-extension mode and directory handling in app
+
+### 💼 Other
+
+- V0.0.13
+
+### ⚙️ Miscellaneous Tasks
+
+- Update changelog [skip ci]
 ## [0.0.12] - 2026-05-21
 
 ### 🚀 Features
