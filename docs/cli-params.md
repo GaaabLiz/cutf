@@ -5,7 +5,7 @@ Il comando pubblico del pacchetto e `cutf`. L'entrypoint e definito in [pyprojec
 ## Sintassi generale
 
 ```text
-cutf --path PERCORSO [flag operativi] [--ai-ollama-url URL] --extensions .ext1 .ext2 ...
+cutf --path PERCORSO [flag operativi] [--ai-ollama-url URL] [--skip-dir NOME [NOME ...]] --extensions .ext1 .ext2 ...
 ```
 
 ## Vincoli obbligatori
@@ -44,8 +44,34 @@ Comportamento:
 
 1. se il path e un file, viene processato solo quel file
 2. se il path e una directory, il tool scorre ricorsivamente tutti i file con `os.walk`, come si vede in [cutf/app.py](../cutf/app.py#L171)
+3. se usi `--skip-dir`, le directory con nome corrispondente vengono potate dalla ricorsione prima della discesa
 
 Nota pratica: anche nel caso di file singolo, il file viene comunque sottoposto al filtro delle estensioni ammesse.
+
+### `--skip-dir`
+
+Definito in [cutf/app.py](../cutf/app.py).
+
+Serve a escludere directory per nome durante la scansione ricorsiva.
+
+Comportamento reale:
+
+1. il match e per nome esatto della cartella, ovunque sotto il path iniziale
+2. puoi passare piu nomi nella stessa occorrenza, per esempio `--skip-dir .git node_modules`
+3. puoi ripetere il flag, per esempio `--skip-dir .git --skip-dir node_modules`
+4. quando il tool incontra una directory da saltare, stampa subito un messaggio con il path skippato
+5. una directory skippata non viene attraversata e quindi i file al suo interno non vengono mai passati al controller dei file
+
+Esempio pratico:
+
+1. `cutf --path C:\dev --all --extensions .py .cs --skip-dir .git`
+
+In questo caso tutte le cartelle `.git` trovate sotto `C:\dev` vengono ignorate.
+
+Nota pratica:
+
+1. il flag ha effetto solo quando `--path` punta a una directory
+2. se il nome e scritto con maiuscole o minuscole diverse, su Windows il confronto segue il comportamento naturale del filesystem
 
 ### `--checks`
 

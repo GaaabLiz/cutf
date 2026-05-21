@@ -78,6 +78,7 @@ usage: cutf --path PATH [--checks] [--convert] [--copyOld]
             [--fix-wrong-with-ai] [--ai-ollama-url AI_OLLAMA_URL]
             [--printMissingCharString] [--printAllSkippedFile]
             [--all] [--verbose] [--only-relevant]
+            [--skip-dir DIR [DIR ...]]
             [--extensions EXT [EXT ...]]
 ```
 
@@ -90,11 +91,14 @@ usage: cutf --path PATH [--checks] [--convert] [--copyOld]
 - `--ai-ollama-url`: override the Ollama base URL used by AI fix mode.
 - `--all`: enable both `--checks` and `--convert`.
 - `--extensions`: list of extensions to scan (required), for example `.cpp .h .cs .ini`.
+- `--skip-dir`: directory names to skip during recursive scans. You can pass multiple values in one flag or repeat the flag, for example `--skip-dir .git node_modules` or `--skip-dir .git --skip-dir node_modules`.
 - `--copyOld`: copy original file before conversion into temp folder.
 - `--printMissingCharString`: print the line content for each missing-character finding.
 - `--printAllSkippedFile`: print every skipped file instead of only the count.
 - `--only-relevant`: hide less relevant missing-character entries.
 - `--verbose`: print extra execution logs.
+
+When a matching directory is found, cutf reports the skipped path and does not descend into it.
 
 ### AI Fix Mode
 
@@ -129,6 +133,12 @@ Run conversion + checks:
 
 ```bash
 uv run cutf --path ./project --all --extensions .cpp .h --copyOld
+```
+
+Skip repository metadata directories during recursive scans:
+
+```bash
+uv run cutf --path ./project --all --extensions .py .cpp --skip-dir .git
 ```
 
 Process one file:
