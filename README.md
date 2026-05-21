@@ -79,6 +79,7 @@ usage: cutf --path PATH [--checks] [--convert] [--copyOld]
             [--printMissingCharString] [--printAllSkippedFile]
             [--all] [--verbose] [--only-relevant]
             [--skip-dir DIR [DIR ...]]
+            [--list-extension]
             [--extensions EXT [EXT ...]]
 ```
 
@@ -87,10 +88,11 @@ usage: cutf --path PATH [--checks] [--convert] [--copyOld]
 - `--path`: file or directory to process.
 - `--checks`: run missing-character checks.
 - `--convert`: convert non-UTF files to UTF-8 with BOM.
+- `--list-extension`: dedicated mode that recursively scans `--path` and prints a Rich table with every extension found and its file count.
 - `--fix-wrong-with-ai`: interactively replace `�` through Ollama while preserving the file encoding.
 - `--ai-ollama-url`: override the Ollama base URL used by AI fix mode.
 - `--all`: enable both `--checks` and `--convert`.
-- `--extensions`: list of extensions to scan (required), for example `.cpp .h .cs .ini`.
+- `--extensions`: list of extensions to scan (required for checks, convert, and AI fix modes), for example `.cpp .h .cs .ini`.
 - `--skip-dir`: directory names to skip during recursive scans. You can pass multiple values in one flag or repeat the flag, for example `--skip-dir .git node_modules` or `--skip-dir .git --skip-dir node_modules`.
 - `--copyOld`: copy original file before conversion into temp folder.
 - `--printMissingCharString`: print the line content for each missing-character finding.
@@ -100,9 +102,23 @@ usage: cutf --path PATH [--checks] [--convert] [--copyOld]
 
 When a matching directory is found, cutf reports the skipped path and does not descend into it.
 
+### List Extension Mode
+
+`--list-extension` is a dedicated mode. It can only be combined with `--path` and optional `--skip-dir`.
+
+When enabled, cutf:
+
+- scans every file under the selected path recursively
+- groups extensions case-insensitively and prints a Rich table with extension and file count
+- treats files without suffix as `(no extension)`
+- respects every skipped directory passed through `--skip-dir`
+- does not require `--extensions`
+- does not require `iconv`
+- does not ask for confirmation before printing the table
+
 ### AI Fix Mode
 
-`--fix-wrong-with-ai` is a dedicated mode. It cannot be combined with `--checks`, `--convert`, or `--all`.
+`--fix-wrong-with-ai` is a dedicated mode. It cannot be combined with `--checks`, `--convert`, `--all`, or `--list-extension`.
 
 When enabled, cutf:
 
@@ -139,6 +155,12 @@ Skip repository metadata directories during recursive scans:
 
 ```bash
 uv run cutf --path ./project --all --extensions .py .cpp --skip-dir .git
+```
+
+List every extension found under a directory:
+
+```bash
+uv run cutf --path ./project --list-extension --skip-dir .git node_modules
 ```
 
 Process one file:
@@ -182,13 +204,13 @@ uv run ruff format .
 ## FAQ
 
 ### Why does CUTF require `--extensions`?
-It prevents accidental processing of unrelated files and keeps scans predictable.
+It prevents accidental processing of unrelated files and keeps checks, conversion, and AI-fix scans predictable. The dedicated `--list-extension` mode is the exception because it must inspect every file to discover the extensions that exist.
 
 ### Why UTF-8 **with BOM**?
 Some tools and Windows-oriented workflows require BOM for UTF-8 detection.
 
 ### What happens if `iconv` is missing?
-CUTF stops before processing and prints an error only for conversion mode. AI fix mode does not require `iconv`.
+CUTF stops before processing and prints an error only for checks/conversion flows that need the regular file-processing pipeline. AI fix mode and list-extension mode do not require `iconv`.
 
 ### Where are original files copied when `--copyOld` is enabled?
 They are copied to `<system-temp>/SrcChE`.

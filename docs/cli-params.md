@@ -5,6 +5,7 @@ Il comando pubblico del pacchetto e `cutf`. L'entrypoint e definito in [pyprojec
 ## Sintassi generale
 
 ```text
+cutf --path PERCORSO --list-extension [--skip-dir NOME [NOME ...]]
 cutf --path PERCORSO [flag operativi] [--ai-ollama-url URL] [--skip-dir NOME [NOME ...]] --extensions .ext1 .ext2 ...
 ```
 
@@ -12,20 +13,21 @@ cutf --path PERCORSO [flag operativi] [--ai-ollama-url URL] [--skip-dir NOME [NO
 
 Il programma impone due regole iniziali, validate in [cutf/app.py](../cutf/app.py) e coperte anche dai test in [tests/test_app.py](../tests/test_app.py):
 
-1. Devi specificare almeno una modalita operativa tra `--checks`, `--convert`, `--all` o `--fix-wrong-with-ai`.
-2. Devi specificare almeno un'estensione con `--extensions`.
+1. Devi specificare almeno una modalita operativa tra `--checks`, `--convert`, `--all`, `--fix-wrong-with-ai` o `--list-extension`.
+2. Devi specificare almeno un'estensione con `--extensions` per le modalita `--checks`, `--convert`, `--all` e `--fix-wrong-with-ai`.
 
 Inoltre:
 
-1. `--fix-wrong-with-ai` non puo essere combinato con `--checks`, `--convert` o `--all`
-2. se usi `--fix-wrong-with-ai`, devi fornire un URL Ollama tramite `--ai-ollama-url`, variabile d'ambiente `OLLAMA_URL` o file `.env` vicino all'eseguibile
+1. `--fix-wrong-with-ai` non puo essere combinato con `--checks`, `--convert`, `--all` o `--list-extension`
+2. `--list-extension` e una modalita dedicata e puo essere usata solo con `--path` e l'opzionale `--skip-dir`
+3. se usi `--fix-wrong-with-ai`, devi fornire un URL Ollama tramite `--ai-ollama-url`, variabile d'ambiente `OLLAMA_URL` o file `.env` vicino all'eseguibile
 
 Inoltre, prima di partire:
 
 1. verifica che il path passato esista davvero come file o directory, in [cutf/app.py](../cutf/app.py)
-2. verifica che `iconv` sia disponibile nel `PATH` di sistema solo quando non e attiva la modalita AI, in [cutf/app.py](../cutf/app.py)
+2. verifica che `iconv` sia disponibile nel `PATH` di sistema solo quando serve il flusso standard di check/conversione, in [cutf/app.py](../cutf/app.py)
 
-Se `iconv` manca, il programma termina con errore solo per le modalita di conversione.
+Se `iconv` manca, il programma termina con errore solo per le modalita che passano dal flusso standard dei file. Le modalita `--fix-wrong-with-ai` e `--list-extension` non lo richiedono.
 
 ## Elenco dettagliato dei parametri
 
@@ -47,6 +49,10 @@ Comportamento:
 3. se usi `--skip-dir`, le directory con nome corrispondente vengono potate dalla ricorsione prima della discesa
 
 Nota pratica: anche nel caso di file singolo, il file viene comunque sottoposto al filtro delle estensioni ammesse.
+
+Eccezione importante:
+
+1. in modalita `--list-extension`, il file singolo viene contato sempre, anche senza `--extensions`
 
 ### `--skip-dir`
 
@@ -72,6 +78,30 @@ Nota pratica:
 
 1. il flag ha effetto solo quando `--path` punta a una directory
 2. se il nome e scritto con maiuscole o minuscole diverse, su Windows il confronto segue il comportamento naturale del filesystem
+
+### `--list-extension`
+
+Definito in [cutf/app.py](../cutf/app.py).
+
+Attiva una modalita dedicata che non esegue controlli, conversioni o fix AI: si limita a censire tutte le estensioni trovate sotto il path indicato.
+
+Cosa fa realmente:
+
+1. accetta solo `--path` e l'opzionale `--skip-dir`
+2. se il path e una directory, scorre ricorsivamente tutti i file con `os.walk`
+3. se il path e un file, conta solo quel file
+4. usa `os.path.splitext` per ricavare l'estensione e normalizza il risultato in minuscolo
+5. aggrega i file senza suffisso nella voce `(no extension)`
+6. rispetta le directory escluse con `--skip-dir`
+7. stampa una tabella `rich` con estensione e conteggio file
+8. non richiede `--extensions`
+9. non usa `iconv`
+10. non chiede conferma all'utente
+
+Esempi:
+
+1. `cutf --path C:\dev --list-extension`
+2. `cutf --path C:\dev --list-extension --skip-dir .git node_modules`
 
 ### `--checks`
 
@@ -237,7 +267,7 @@ In pratica:
 
 Definito in [cutf/app.py](../cutf/app.py).
 
-E un parametro multi-valore obbligatorio.
+E un parametro multi-valore obbligatorio per le modalita di scansione standard.
 
 Accetta una o piu estensioni separate da spazio, per esempio:
 
@@ -249,6 +279,7 @@ Comportamento reale:
 1. il confronto e case-insensitive
 2. le estensioni vengono normalizzate in minuscolo
 3. il match e esatto sull'estensione ottenuta da `os.path.splitext`
+4. non viene usato in modalita `--list-extension`
 
 La logica e in [cutf/controller/fileController.py](../cutf/controller/fileController.py).
 
@@ -333,27 +364,40 @@ E la modalita piu completa:
 
 E una modalita separata:
 
-1. non puo convivere con `--checks`, `--convert` o `--all`
+1. non puo convivere con `--checks`, `--convert`, `--all` o `--list-extension`
 2. non usa `iconv`
 3. non cambia la codifica del file
 4. richiede un endpoint Ollama raggiungibile
+
+### `--list-extension`
+
+E una modalita separata:
+
+1. non puo convivere con `--checks`, `--convert`, `--all` o `--fix-wrong-with-ai`
+2. puo essere usata solo con `--path` e l'opzionale `--skip-dir`
+3. non usa `iconv`
+4. non richiede `--extensions`
+5. non chiede conferma
+6. non genera `FileScanResult`, ma stampa direttamente una tabella riepilogativa
 
 ### `--copyOld` senza conversione reale
 
 Non crea nessun backup se il file non deve essere convertito.
 
-### `--copyOld` in modalita AI
+### `--copyOld` in modalita AI o list-extension
 
-Non ha effetto pratico, perche la modalita AI non usa il flusso di conversione.
+Non ha effetto pratico, perche queste modalita non usano il flusso di conversione. In pratica `--list-extension` non accetta proprio questo flag.
 
 ### Flag di reportistica
 
-Questi flag non cambiano quali file vengono processati, ma solo come vengono mostrati i risultati:
+Questi flag non cambiano quali file vengono processati, ma solo come vengono mostrati i risultati del flusso standard:
 
 1. `--printMissingCharString`
 2. `--printAllSkippedFile`
 3. `--only-relevant`
 4. `--verbose`
+
+In modalita `--list-extension` questi flag non sono ammessi.
 
 ## Flusso generale della CLI
 
@@ -361,13 +405,14 @@ La funzione principale e in [cutf/app.py](../cutf/app.py) e segue questo ordine:
 
 1. parse degli argomenti
 2. validazione minima dei flag obbligatori
-3. verifica del path
-4. risoluzione eventuale di `OLLAMA_URL` per la modalita AI
-5. verifica di `iconv` nel sistema solo se serve
-6. richiesta di conferma all'utente
-7. creazione della configurazione [cutf/model/AppSetting.py](../cutf/model/AppSetting.py#L1)
-8. scansione di file singolo o directory
-9. stampa del report finale con [cutf/controller/resultHandler.py](../cutf/controller/resultHandler.py)
+3. risoluzione eventuale di `OLLAMA_URL` per la modalita AI
+4. verifica del path
+5. creazione della configurazione [cutf/model/AppSetting.py](../cutf/model/AppSetting.py)
+6. se e attiva `--list-extension`, censimento delle estensioni e stampa immediata della tabella
+7. altrimenti verifica di `iconv` nel sistema solo se serve
+8. richiesta di conferma all'utente
+9. scansione di file singolo o directory
+10. stampa del report finale con [cutf/controller/resultHandler.py](../cutf/controller/resultHandler.py)
 
 ## Esempi d'uso
 
@@ -393,6 +438,12 @@ cutf --path ./src --all --only-relevant --extensions .py .txt
 
 ```bash
 cutf --path ./main.cpp --all --verbose --extensions .cpp
+```
+
+### Lista estensioni trovate
+
+```bash
+cutf --path ./src --list-extension --skip-dir .git node_modules
 ```
 
 ### Correzione interattiva con Ollama
