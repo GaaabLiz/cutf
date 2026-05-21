@@ -11,6 +11,7 @@ class TextFileState:
 
     raw_data: bytes
     text: str
+    decode_encoding: str
     normalized_encoding: str
     write_encoding: str
     bom_bytes: bytes
@@ -63,6 +64,7 @@ def read_text_file_state(file_path: str, source_encoding: str) -> TextFileState:
     return TextFileState(
         raw_data=raw_data,
         text=text,
+        decode_encoding=decode_encoding,
         normalized_encoding=normalized_encoding,
         write_encoding=write_encoding,
         bom_bytes=bom_bytes,
