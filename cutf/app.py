@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from shutil import which
 
+import chardet
 import rich
 from rich.table import Table
 
@@ -15,6 +16,8 @@ from cutf.util.log import format_log_error, format_log_path, format_log_warning
 
 DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b-instruct"
 NO_EXTENSION_LABEL = "(no extension)"
+TEXT_FILE_KIND = "text"
+BINARY_FILE_KIND = "binary"
 
 
 def get_executable_directory() -> Path:
@@ -125,7 +128,60 @@ def is_command_available(command: str) -> bool:
     return which(command) is not None
 
 
-def collect_extensions(path: str, is_file: bool, skip_dirs: list[str]) -> tuple[Counter[str], int]:
+def detect_file_kind(file_path: str, sample_size: int = 4096) -> str:
+    """Classify a file as text or binary using a small content sample."""
+    with open(file_path, "rb") as file_handle:
+        sample = file_handle.read(sample_size)
+
+    if not sample:
+        return TEXT_FILE_KIND
+
+    detected_encoding = (chardet.detect(sample).get("encoding") or "").strip().lower().replace("_", "-")
+    if detected_encoding in {"utf-16", "utf-16le", "utf-16be", "utf-32", "utf-32le", "utf-32be"}:
+        return TEXT_FILE_KIND
+
+    if b"\x00" in sample:
+        return BINARY_FILE_KIND
+
+    control_bytes = sum(1 for byte in sample if byte < 32 and byte not in {9, 10, 12, 13})
+    if control_bytes / len(sample) > 0.30:
+        return BINARY_FILE_KIND
+
+    if detected_encoding:
+        try:
+            sample.decode(detected_encoding)
+            return TEXT_FILE_KIND
+        except (LookupError, UnicodeDecodeError):
+            return BINARY_FILE_KIND
+
+    try:
+        sample.decode("utf-8")
+        return TEXT_FILE_KIND
+    except UnicodeDecodeError:
+        return BINARY_FILE_KIND
+
+
+def format_extension_kind(extension_stats: Counter[str]) -> str:
+    """Return a readable kind label for the aggregated extension stats."""
+    text_files = extension_stats[TEXT_FILE_KIND]
+    binary_files = extension_stats[BINARY_FILE_KIND]
+    if text_files and binary_files:
+        return f"mixed ({text_files} text / {binary_files} binary)"
+    if text_files:
+        return TEXT_FILE_KIND
+    return BINARY_FILE_KIND
+
+
+def collect_text_extensions(extension_stats: dict[str, Counter[str]]) -> list[str]:
+    """Return the sorted extensions that appeared in at least one text file."""
+    return sorted(
+        extension
+        for extension, stats in extension_stats.items()
+        if extension != NO_EXTENSION_LABEL and stats[TEXT_FILE_KIND] > 0
+    )
+
+
+def collect_extensions(path: str, is_file: bool, skip_dirs: list[str]) -> tuple[dict[str, Counter[str]], int]:
     """Collect file-extension counts for the selected file or directory tree.
 
     Args:
@@ -134,19 +190,22 @@ def collect_extensions(path: str, is_file: bool, skip_dirs: list[str]) -> tuple[
         skip_dirs: Directory names to prune during recursive walks.
 
     Returns:
-        tuple[Counter[str], int]: Extension counts and number of scanned files.
+        tuple[dict[str, Counter[str]], int]: Extension stats and number of scanned files.
     """
-    extension_counter: Counter[str] = Counter()
+    extension_stats: dict[str, Counter[str]] = {}
     scanned_files = 0
 
-    def add_file(file_name: str) -> None:
-        extension = os.path.splitext(file_name)[1].lower() or NO_EXTENSION_LABEL
-        extension_counter[extension] += 1
+    def add_file(file_path: str) -> None:
+        extension = os.path.splitext(file_path)[1].lower() or NO_EXTENSION_LABEL
+        file_kind = detect_file_kind(file_path)
+        stats = extension_stats.setdefault(extension, Counter())
+        stats["files"] += 1
+        stats[file_kind] += 1
 
     if is_file:
         scanned_files = 1
         add_file(path)
-        return extension_counter, scanned_files
+        return extension_stats, scanned_files
 
     skip_dir_names = set(skip_dirs)
     for root, dirs, files in os.walk(path):
@@ -158,23 +217,30 @@ def collect_extensions(path: str, is_file: bool, skip_dirs: list[str]) -> tuple[
                 rich.print(f"{format_log_warning('Skipping directory')} {format_log_path(skipped_path)}")
         for file_name in files:
             scanned_files += 1
-            add_file(file_name)
+            add_file(os.path.join(root, file_name))
 
-    return extension_counter, scanned_files
+    return extension_stats, scanned_files
 
 
-def print_extension_table(extension_counter: Counter[str], scanned_files: int, path: str) -> None:
+def print_extension_table(extension_stats: dict[str, Counter[str]], scanned_files: int, path: str) -> None:
     """Print a Rich table with all extensions found under the selected path."""
     table = Table(title=f"Extensions found in {path}")
     table.add_column("Extension", style="cyan")
     table.add_column("Files", justify="right", style="magenta")
+    table.add_column("Kind", style="green")
 
-    for extension, count in sorted(extension_counter.items(), key=lambda item: (-item[1], item[0])):
-        table.add_row(extension, str(count))
+    for extension, stats in sorted(extension_stats.items(), key=lambda item: (-item[1]["files"], item[0])):
+        table.add_row(extension, str(stats["files"]), format_extension_kind(stats))
 
     rich.print(table)
     rich.print(f"Files scanned for extension listing: {scanned_files}")
-    rich.print(f"Unique extensions found: {len(extension_counter)}")
+    rich.print(f"Unique extensions found: {len(extension_stats)}")
+
+    text_extensions = collect_text_extensions(extension_stats)
+    convert_hint = "If you want to convert current directory rerun this tool with --convert --extensions"
+    if text_extensions:
+        convert_hint = f"{convert_hint} {' '.join(text_extensions)}"
+    rich.print(convert_hint)
 
 
 def build_parser() -> argparse.ArgumentParser:
