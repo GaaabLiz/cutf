@@ -9,7 +9,7 @@ import rich
 from cutf.controller.fileController import handle_file
 from cutf.controller.resultHandler import print_results
 from cutf.model.AppSetting import AppSetting
-from cutf.util.log import format_log_error, format_log_path
+from cutf.util.log import format_log_error, format_log_path, format_log_warning
 
 DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b-instruct"
 
@@ -175,6 +175,13 @@ def build_parser() -> argparse.ArgumentParser:
         # Permette di passare piu estensioni separando con uno spazio
         help="List of extensions to scan, for example: .cpp .h .cs .ini",
     )
+    parser.add_argument(
+        "--skip-dir",
+        action="append",
+        nargs="+",
+        default=[],
+        help="Directory names to skip during recursive scans, for example: .git node_modules",
+    )
     return parser
 
 
@@ -210,6 +217,14 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
     enable_checks = bool(args.checks or args.all)
     enable_convert = bool(args.convert or args.all)
     enable_ai_fix = bool(args.fix_wrong_with_ai)
+    skip_dirs = list(
+        dict.fromkeys(
+            os.path.normcase(value.strip())
+            for values in args.skip_dir
+            for value in values
+            if value.strip()
+        )
+    )
     ollama_url = resolve_ollama_url(args.ai_ollama_url) if enable_ai_fix else None
 
     if enable_ai_fix and not ollama_url:
@@ -225,6 +240,7 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
     rich.print(f"Conversion enabled: {enable_convert}")
     rich.print(f"AI fix enabled: {enable_ai_fix}")
     rich.print(f"Extensions to scan: {args.extensions}")
+    rich.print(f"Directories to skip: {skip_dirs}")
     rich.print(f"Copy old encoded: {args.copyOld}")
     if enable_ai_fix:
         rich.print(f"Ollama URL: {ollama_url}")
@@ -278,6 +294,7 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
         verbose=args.verbose,
         print_skipped_file_no_action=args.printAllSkippedFile,
         print_result_only_relevant=args.only_relevant,
+        skip_dirs=skip_dirs,
         fix_wrong_with_ai=enable_ai_fix,
         ai_ollama_url=ollama_url,
         ai_model=DEFAULT_OLLAMA_MODEL,
@@ -291,7 +308,16 @@ def main(argv: list[str] | None = None, confirm_fn=input) -> int:
         count_from_files += 1
         results.append(handle_file(setting.input_path, setting))
     else:
-        for root, _, files in os.walk(path):
+        skip_dir_names = set(setting.skip_dirs)
+        for root, dirs, files in os.walk(path):
+            skipped_dirs = [dir_name for dir_name in dirs if os.path.normcase(dir_name) in skip_dir_names]
+            if skipped_dirs:
+                dirs[:] = [dir_name for dir_name in dirs if os.path.normcase(dir_name) not in skip_dir_names]
+                for dir_name in skipped_dirs:
+                    skipped_path = os.path.join(root, dir_name)
+                    rich.print(
+                        f"{format_log_warning('Skipping directory')} {format_log_path(skipped_path)}"
+                    )
             for file_name in files:
                 count_from_files += 1
                 full_file_path = os.path.join(root, file_name)

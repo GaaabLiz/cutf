@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -15,6 +15,7 @@ class AppSetting:
         print_missing_char_str: Prints the line text where missing characters are detected.
         print_skipped_file_no_action: Prints all skipped files instead of just a count.
         print_result_only_relevant: Hides less relevant missing-char entries.
+        skip_dirs: Directory names excluded from recursive scans.
         verbose: Enables detailed progress logs.
         fix_wrong_with_ai: Enables interactive AI-assisted replacement of ``�``.
         ai_ollama_url: Resolved Ollama base URL used for AI requests.
@@ -29,6 +30,7 @@ class AppSetting:
     print_missing_char_str: bool = False
     print_skipped_file_no_action: bool = False
     print_result_only_relevant: bool = False
+    skip_dirs: list[str] = field(default_factory=list)
     verbose: bool = False
     fix_wrong_with_ai: bool = False
     ai_ollama_url: str | None = None
