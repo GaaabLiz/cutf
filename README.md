@@ -12,8 +12,9 @@ It can optionally fix those replacement characters interactively through Ollama 
 - Detect source encoding with `chardet`.
 - Convert files to UTF-8 with BOM through `iconv`.
 - Interactively repair replacement characters through Ollama without changing file encoding.
+- Discover extensions under a path and classify each one as `text`, `binary`, or `mixed`.
 - Optional backup copy of original files.
-- Detailed Rich table report for converted, skipped, and problematic files.
+- Detailed Rich table reports for encodings, AI-fix summary, converted/skipped files, errors, and missing-character findings.
 
 ## Missing-char classification
 
@@ -127,11 +128,13 @@ When enabled, cutf:
 
 - scans every file under the selected path recursively
 - groups extensions case-insensitively and prints a Rich table with extension and file count
+- shows a `Kind` column (`text`, `binary`, or `mixed`) based on content sampling
 - treats files without suffix as `(no extension)`
 - respects every skipped directory passed through `--skip-dir`
 - does not require `--extensions`
 - does not require `iconv`
 - does not ask for confirmation before printing the table
+- prints a ready-to-copy `--convert --extensions ...` hint using the text extensions found
 
 ### AI Fix Mode
 
@@ -140,6 +143,7 @@ When enabled, cutf:
 When enabled, cutf:
 
 - scans every matching file for `�`
+- handles only occurrences where `�` is visible after decoding with the file encoding
 - asks Ollama for a single-character replacement proposal
 - shows the wrong line and the proposed corrected line
 - lets you choose whether to apply, retry, or skip
